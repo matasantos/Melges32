@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ORC Boat Speed Polar Comparison</title>
+<style>
+  .viz-root {
+    color-scheme: light;
+    --surface-1:      #fcfcfb;
+    --page:           #f9f9f7;
+    --text-primary:   #0b0b0b;
+    --text-secondary: #52514e;
+    --text-muted:     #898781;
+    --grid:           #e1e0d9;
+    --axis:           #c3c2b7;
+    --border:         rgba(11,11,11,0.10);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) .viz-root {
+      color-scheme: dark;
+      --surface-1:      #1a1a19;
+      --page:           #0d0d0d;
+      --text-primary:   #ffffff;
+      --text-secondary: #c3c2b7;
+      --text-muted:     #898781;
+      --grid:           #2c2c2a;
+      --axis:           #383835;
+      --border:         rgba(255,255,255,0.10);
+    }
+  }
+  :root[data-theme="dark"] .viz-root {
+    color-scheme: dark;
+    --surface-1:      #1a1a19;
+    --page:           #0d0d0d;
+    --text-primary:   #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted:     #898781;
+    --grid:           #2c2c2a;
+    --axis:           #383835;
+    --border:         rgba(255,255,255,0.10);
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    background: var(--page);
+    color: var(--text-primary);
+  }
+  .viz-root { padding: 24px; max-width: 1100px; margin: 0 auto; }
+  h1 { font-size: 19px; margin: 0 0 2px; font-weight: 700; }
+  .subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; }
+  .card {
+    background: var(--surface-1);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+  }
+  .controls {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
+  }
+  .tws-group { display: flex; gap: 4px; flex-wrap: wrap; }
+  .tws-btn {
+    font-family: inherit; font-size: 12.5px; font-weight: 600;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-secondary); border-radius: 7px;
+    padding: 6px 11px; cursor: pointer;
+  }
+  .tws-btn[aria-pressed="true"] {
+    background: var(--text-primary); color: var(--surface-1); border-color: var(--text-primary);
+  }
+  .view-toggle {
+    font-family: inherit; font-size: 12.5px; font-weight: 600;
+    border: 1px solid var(--border); background: transparent;
+    color: var(--text-secondary); border-radius: 7px; padding: 6px 11px; cursor: pointer;
+  }
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-primary); }
+  .swatch { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+  .legend-sub { color: var(--text-muted); font-size: 11.5px; }
+  svg { display: block; width: 100%; height: auto; }
+  .grid-circle { fill: none; stroke: var(--grid); stroke-width: 1; }
+  .grid-ring-label { fill: var(--text-muted); font-size: 9.5px; }
+  .angle-line { stroke: var(--grid); stroke-width: 1; }
+  .angle-label { fill: var(--text-muted); font-size: 10px; text-anchor: middle; }
+  .boat-path { fill: none; stroke-width: 2; }
+  .boat-dot { stroke: var(--surface-1); stroke-width: 1.4; }
+  .wind-label { fill: var(--text-secondary); font-size: 11px; font-weight: 700; text-anchor: middle; }
+  .tooltip {
+    position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.08s;
+    background: var(--text-primary); color: var(--surface-1);
+    font-size: 11.5px; padding: 6px 9px; border-radius: 6px; white-space: nowrap;
+    transform: translate(-50%, -115%);
+  }
+  table.datatable { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; }
+  table.datatable th, table.datatable td {
+    text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid);
+    font-variant-numeric: tabular-nums;
+  }
+  table.datatable th:first-child, table.datatable td:first-child { text-align: left; }
+  table.datatable thead th { color: var(--text-secondary); font-weight: 600; font-size: 11.5px; }
+  .hidden { display: none !important; }
+  .foot { margin-top: 14px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
+  .wrap-chart { position: relative; }
+</style>
+</head>
+<body>
+<div class="viz-root">
+  <h1>Boat Speed Polar Comparison</h1>
+  <p class="subtitle">Rated boat speed (BSP, knots) by true wind angle — ORC International Certificates, 2026 season</p>
+  <div class="card">
+    <div class="controls">
+      <div class="tws-group" role="group" aria-label="True wind speed"></div>
+      <button class="view-toggle" id="viewToggle" aria-pressed="false">Show table</button>
+    </div>
+    <div class="legend" id="legend"></div>
+    <div class="wrap-chart">
+      <svg id="chart" viewBox="0 0 640 500"></svg>
+      <div class="tooltip" id="tooltip"></div>
+    </div>
+    <div id="tableWrap" class="hidden"></div>
+    <div class="foot">
+      Beat and Run points use each boat's own optimal VMG angle at that wind speed (converted from certificate VMG to boat speed). 52°–150° points are boat speed as published directly on the certificate.<br>
+      Source: ORC International Certificates 2026, data.orc.org.
+    </div>
+  </div>
+</div>
+
+<script>
+const DATA = {"VICKY": {"name": "VICKY", "sailno": "ESP 8377", "class": "VROLIJK 37", "color": "#2a78d6", "series": {"4": [{"a": 45.6, "s": 3.63}, {"a": 52, "s": 3.97}, {"a": 60, "s": 4.25}, {"a": 75, "s": 4.46}, {"a": 90, "s": 4.33}, {"a": 110, "s": 4.18}, {"a": 120, "s": 4.03}, {"a": 135, "s": 3.5}, {"a": 150, "s": 2.9}, {"a": 139.5, "s": 3.3}], "6": [{"a": 42.5, "s": 4.87}, {"a": 52, "s": 5.43}, {"a": 60, "s": 5.7}, {"a": 75, "s": 5.88}, {"a": 90, "s": 5.76}, {"a": 110, "s": 5.8}, {"a": 120, "s": 5.62}, {"a": 135, "s": 5.02}, {"a": 150, "s": 4.22}, {"a": 144.7, "s": 4.47}], "8": [{"a": 40.8, "s": 5.77}, {"a": 52, "s": 6.44}, {"a": 60, "s": 6.67}, {"a": 75, "s": 6.82}, {"a": 90, "s": 6.85}, {"a": 110, "s": 6.94}, {"a": 120, "s": 6.77}, {"a": 135, "s": 6.22}, {"a": 150, "s": 5.38}, {"a": 149.2, "s": 5.43}], "10": [{"a": 39.4, "s": 6.33}, {"a": 52, "s": 7.02}, {"a": 60, "s": 7.2}, {"a": 75, "s": 7.33}, {"a": 90, "s": 7.38}, {"a": 110, "s": 7.55}, {"a": 120, "s": 7.45}, {"a": 135, "s": 7.08}, {"a": 150, "s": 6.39}, {"a": 152.2, "s": 6.27}], "12": [{"a": 38.4, "s": 6.52}, {"a": 52, "s": 7.25}, {"a": 60, "s": 7.45}, {"a": 75, "s": 7.64}, {"a": 90, "s": 7.68}, {"a": 110, "s": 7.95}, {"a": 120, "s": 7.91}, {"a": 135, "s": 7.61}, {"a": 150, "s": 7.15}, {"a": 158.5, "s": 6.79}], "14": [{"a": 38.0, "s": 6.61}, {"a": 52, "s": 7.35}, {"a": 60, "s": 7.56}, {"a": 75, "s": 7.84}, {"a": 90, "s": 7.97}, {"a": 110, "s": 8.25}, {"a": 120, "s": 8.34}, {"a": 135, "s": 8.08}, {"a": 150, "s": 7.64}, {"a": 166.2, "s": 7.15}], "16": [{"a": 38.2, "s": 6.71}, {"a": 52, "s": 7.42}, {"a": 60, "s": 7.63}, {"a": 75, "s": 7.96}, {"a": 90, "s": 8.21}, {"a": 110, "s": 8.46}, {"a": 120, "s": 8.75}, {"a": 135, "s": 8.56}, {"a": 150, "s": 8.07}, {"a": 172.7, "s": 7.47}], "20": [{"a": 38.4, "s": 6.79}, {"a": 52, "s": 7.49}, {"a": 60, "s": 7.72}, {"a": 75, "s": 8.12}, {"a": 90, "s": 8.53}, {"a": 110, "s": 8.84}, {"a": 120, "s": 9.33}, {"a": 135, "s": 9.7}, {"a": 150, "s": 9.03}, {"a": 175.4, "s": 8.24}], "24": [{"a": 39.8, "s": 6.78}, {"a": 52, "s": 7.47}, {"a": 60, "s": 7.73}, {"a": 75, "s": 8.18}, {"a": 90, "s": 8.71}, {"a": 110, "s": 9.21}, {"a": 120, "s": 9.84}, {"a": 135, "s": 11.29}, {"a": 150, "s": 10.35}, {"a": 165.4, "s": 9.43}]}}, "BAMAK": {"name": "BAMAK", "sailno": "ESP-10206", "class": "SINERGIA 40 Mod.", "color": "#eb6834", "series": {"4": [{"a": 46.1, "s": 3.75}, {"a": 52, "s": 4.08}, {"a": 60, "s": 4.39}, {"a": 75, "s": 4.61}, {"a": 90, "s": 4.48}, {"a": 110, "s": 4.32}, {"a": 120, "s": 4.17}, {"a": 135, "s": 3.63}, {"a": 150, "s": 3.01}, {"a": 138.8, "s": 3.47}], "6": [{"a": 42.9, "s": 5.01}, {"a": 52, "s": 5.58}, {"a": 60, "s": 5.88}, {"a": 75, "s": 6.09}, {"a": 90, "s": 5.97}, {"a": 110, "s": 6.0}, {"a": 120, "s": 5.83}, {"a": 135, "s": 5.21}, {"a": 150, "s": 4.39}, {"a": 144.4, "s": 4.67}], "8": [{"a": 41.2, "s": 5.89}, {"a": 52, "s": 6.57}, {"a": 60, "s": 6.83}, {"a": 75, "s": 7.02}, {"a": 90, "s": 7.02}, {"a": 110, "s": 7.17}, {"a": 120, "s": 7.01}, {"a": 135, "s": 6.44}, {"a": 150, "s": 5.59}, {"a": 148.7, "s": 5.66}], "10": [{"a": 40.1, "s": 6.5}, {"a": 52, "s": 7.21}, {"a": 60, "s": 7.42}, {"a": 75, "s": 7.57}, {"a": 90, "s": 7.6}, {"a": 110, "s": 7.82}, {"a": 120, "s": 7.72}, {"a": 135, "s": 7.33}, {"a": 150, "s": 6.61}, {"a": 152.5, "s": 6.47}], "12": [{"a": 39.0, "s": 6.74}, {"a": 52, "s": 7.49}, {"a": 60, "s": 7.71}, {"a": 75, "s": 7.91}, {"a": 90, "s": 7.94}, {"a": 110, "s": 8.25}, {"a": 120, "s": 8.22}, {"a": 135, "s": 7.9}, {"a": 150, "s": 7.39}, {"a": 157.9, "s": 7.03}], "14": [{"a": 38.6, "s": 6.88}, {"a": 52, "s": 7.62}, {"a": 60, "s": 7.84}, {"a": 75, "s": 8.13}, {"a": 90, "s": 8.26}, {"a": 110, "s": 8.54}, {"a": 120, "s": 8.68}, {"a": 135, "s": 8.41}, {"a": 150, "s": 7.92}, {"a": 165.1, "s": 7.4}], "16": [{"a": 38.2, "s": 6.95}, {"a": 52, "s": 7.7}, {"a": 60, "s": 7.93}, {"a": 75, "s": 8.27}, {"a": 90, "s": 8.52}, {"a": 110, "s": 8.76}, {"a": 120, "s": 9.09}, {"a": 135, "s": 8.91}, {"a": 150, "s": 8.39}, {"a": 170.5, "s": 7.76}], "20": [{"a": 38.2, "s": 7.06}, {"a": 52, "s": 7.8}, {"a": 60, "s": 8.04}, {"a": 75, "s": 8.45}, {"a": 90, "s": 8.86}, {"a": 110, "s": 9.13}, {"a": 120, "s": 9.66}, {"a": 135, "s": 10.1}, {"a": 150, "s": 9.41}, {"a": 170.9, "s": 8.63}], "24": [{"a": 38.9, "s": 7.09}, {"a": 52, "s": 7.82}, {"a": 60, "s": 8.08}, {"a": 75, "s": 8.53}, {"a": 90, "s": 9.07}, {"a": 110, "s": 9.54}, {"a": 120, "s": 10.16}, {"a": 135, "s": 11.7}, {"a": 150, "s": 10.81}, {"a": 163.3, "s": 9.91}]}}, "HYDRA_YOUTH": {"name": "HYDRA YOUTH", "sailno": "ESP-20511", "class": "MELGES 32", "color": "#1baf7a", "series": {"4": [{"a": 44.9, "s": 4.21}, {"a": 52, "s": 4.65}, {"a": 60, "s": 4.99}, {"a": 75, "s": 5.27}, {"a": 90, "s": 5.36}, {"a": 110, "s": 5.19}, {"a": 120, "s": 4.88}, {"a": 135, "s": 4.33}, {"a": 150, "s": 3.6}, {"a": 139.9, "s": 4.08}], "6": [{"a": 42.1, "s": 5.65}, {"a": 52, "s": 6.3}, {"a": 60, "s": 6.59}, {"a": 75, "s": 6.78}, {"a": 90, "s": 6.94}, {"a": 110, "s": 6.88}, {"a": 120, "s": 6.7}, {"a": 135, "s": 6.14}, {"a": 150, "s": 5.17}, {"a": 142.1, "s": 5.68}], "8": [{"a": 38.9, "s": 6.27}, {"a": 52, "s": 7.01}, {"a": 60, "s": 7.23}, {"a": 75, "s": 7.45}, {"a": 90, "s": 7.49}, {"a": 110, "s": 7.73}, {"a": 120, "s": 7.7}, {"a": 135, "s": 7.31}, {"a": 150, "s": 6.41}, {"a": 147.2, "s": 6.61}], "10": [{"a": 37.7, "s": 6.48}, {"a": 52, "s": 7.25}, {"a": 60, "s": 7.51}, {"a": 75, "s": 7.91}, {"a": 90, "s": 8.08}, {"a": 110, "s": 8.41}, {"a": 120, "s": 8.46}, {"a": 135, "s": 8.25}, {"a": 150, "s": 7.29}, {"a": 152.9, "s": 7.12}], "12": [{"a": 37.6, "s": 6.63}, {"a": 52, "s": 7.4}, {"a": 60, "s": 7.7}, {"a": 75, "s": 8.18}, {"a": 90, "s": 8.59}, {"a": 110, "s": 8.91}, {"a": 120, "s": 9.25}, {"a": 135, "s": 9.34}, {"a": 150, "s": 8.16}, {"a": 150.5, "s": 8.12}], "14": [{"a": 37.4, "s": 6.7}, {"a": 52, "s": 7.51}, {"a": 60, "s": 7.85}, {"a": 75, "s": 8.41}, {"a": 90, "s": 8.96}, {"a": 110, "s": 9.37}, {"a": 120, "s": 9.91}, {"a": 135, "s": 10.44}, {"a": 150, "s": 9.19}, {"a": 144.9, "s": 9.73}], "16": [{"a": 37.4, "s": 6.77}, {"a": 52, "s": 7.6}, {"a": 60, "s": 7.96}, {"a": 75, "s": 8.6}, {"a": 90, "s": 9.3}, {"a": 110, "s": 9.87}, {"a": 120, "s": 10.54}, {"a": 135, "s": 11.36}, {"a": 150, "s": 10.48}, {"a": 144.8, "s": 11.1}], "20": [{"a": 38.2, "s": 6.81}, {"a": 52, "s": 7.67}, {"a": 60, "s": 8.09}, {"a": 75, "s": 8.86}, {"a": 90, "s": 9.8}, {"a": 110, "s": 11.07}, {"a": 120, "s": 11.53}, {"a": 135, "s": 13.31}, {"a": 150, "s": 13.85}, {"a": 148.3, "s": 14.1}], "24": [{"a": 40.1, "s": 6.79}, {"a": 52, "s": 7.58}, {"a": 60, "s": 8.03}, {"a": 75, "s": 8.92}, {"a": 90, "s": 10.15}, {"a": 110, "s": 11.87}, {"a": 120, "s": 12.65}, {"a": 135, "s": 15.25}, {"a": 150, "s": 17.19}, {"a": 152.5, "s": 17.1}]}}, "WILMA": {"name": "WILMA", "sailno": "ESP-32227", "class": "MELGES 32", "color": "#eda100", "series": {"4": [{"a": 44.9, "s": 4.19}, {"a": 52, "s": 4.63}, {"a": 60, "s": 4.98}, {"a": 75, "s": 5.25}, {"a": 90, "s": 5.13}, {"a": 110, "s": 5.01}, {"a": 120, "s": 4.84}, {"a": 135, "s": 4.34}, {"a": 150, "s": 3.61}, {"a": 139.9, "s": 4.09}], "6": [{"a": 42.3, "s": 5.66}, {"a": 52, "s": 6.31}, {"a": 60, "s": 6.6}, {"a": 75, "s": 6.79}, {"a": 90, "s": 6.69}, {"a": 110, "s": 6.84}, {"a": 120, "s": 6.74}, {"a": 135, "s": 6.16}, {"a": 150, "s": 5.18}, {"a": 142.0, "s": 5.7}], "8": [{"a": 38.8, "s": 6.33}, {"a": 52, "s": 7.06}, {"a": 60, "s": 7.27}, {"a": 75, "s": 7.47}, {"a": 90, "s": 7.45}, {"a": 110, "s": 7.68}, {"a": 120, "s": 7.76}, {"a": 135, "s": 7.35}, {"a": 150, "s": 6.42}, {"a": 147.1, "s": 6.62}], "10": [{"a": 37.6, "s": 6.56}, {"a": 52, "s": 7.32}, {"a": 60, "s": 7.59}, {"a": 75, "s": 7.99}, {"a": 90, "s": 8.11}, {"a": 110, "s": 8.24}, {"a": 120, "s": 8.54}, {"a": 135, "s": 8.33}, {"a": 150, "s": 7.31}, {"a": 152.9, "s": 7.13}], "12": [{"a": 37.1, "s": 6.68}, {"a": 52, "s": 7.48}, {"a": 60, "s": 7.8}, {"a": 75, "s": 8.29}, {"a": 90, "s": 8.7}, {"a": 110, "s": 8.77}, {"a": 120, "s": 9.19}, {"a": 135, "s": 9.46}, {"a": 150, "s": 8.22}, {"a": 150.2, "s": 8.2}], "14": [{"a": 37.0, "s": 6.77}, {"a": 52, "s": 7.61}, {"a": 60, "s": 7.96}, {"a": 75, "s": 8.54}, {"a": 90, "s": 9.11}, {"a": 110, "s": 9.3}, {"a": 120, "s": 9.85}, {"a": 135, "s": 10.59}, {"a": 150, "s": 9.3}, {"a": 144.2, "s": 9.93}], "16": [{"a": 36.9, "s": 6.83}, {"a": 52, "s": 7.71}, {"a": 60, "s": 8.09}, {"a": 75, "s": 8.75}, {"a": 90, "s": 9.48}, {"a": 110, "s": 9.99}, {"a": 120, "s": 10.5}, {"a": 135, "s": 11.53}, {"a": 150, "s": 10.64}, {"a": 144.2, "s": 11.36}], "20": [{"a": 37.5, "s": 6.88}, {"a": 52, "s": 7.81}, {"a": 60, "s": 8.24}, {"a": 75, "s": 9.05}, {"a": 90, "s": 10.04}, {"a": 110, "s": 11.33}, {"a": 120, "s": 11.74}, {"a": 135, "s": 13.33}, {"a": 150, "s": 14.14}, {"a": 148.4, "s": 14.37}], "24": [{"a": 39.3, "s": 6.86}, {"a": 52, "s": 7.72}, {"a": 60, "s": 8.19}, {"a": 75, "s": 9.14}, {"a": 90, "s": 10.43}, {"a": 110, "s": 12.21}, {"a": 120, "s": 12.97}, {"a": 135, "s": 15.31}, {"a": 150, "s": 17.47}, {"a": 152.6, "s": 17.38}]}}};
+const BOATS = Object.keys(DATA);
+const TWS_LIST = [4,6,8,10,12,14,16,20,24];
+const MAXR = 20; // outer ring speed (kt)
+const RINGS = [4,8,12,16,20];
+
+let currentTWS = 12;
+let tableMode = false;
+
+const cx = 320, cy = 250, plotR = 210;
+
+function polarToXY(angleDeg, speed) {
+  const r = Math.min(speed / MAXR, 1.08) * plotR;
+  const rad = angleDeg * Math.PI / 180;
+  return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)];
+}
+
+function buildTWSButtons() {
+  const g = document.querySelector('.tws-group');
+  TWS_LIST.forEach(tws => {
+    const b = document.createElement('button');
+    b.className = 'tws-btn';
+    b.textContent = tws + ' kt';
+    b.setAttribute('aria-pressed', tws === currentTWS ? 'true' : 'false');
+    b.addEventListener('click', () => {
+      currentTWS = tws;
+      document.querySelectorAll('.tws-btn').forEach(x => x.setAttribute('aria-pressed', 'false'));
+      b.setAttribute('aria-pressed', 'true');
+      render();
+    });
+    g.appendChild(b);
+  });
+}
+
+function buildLegend() {
+  const el = document.getElementById('legend');
+  el.innerHTML = '';
+  BOATS.forEach(k => {
+    const d = DATA[k];
+    const item = document.createElement('div');
+    item.className = 'legend-item';
+    item.innerHTML = `<span class="swatch" style="background:${d.color}"></span>${d.name} <span class="legend-sub">(${d.class}, ${d.sailno})</span>`;
+    el.appendChild(item);
+  });
+}
+
+function svgEl(tag, attrs) {
+  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  return e;
+}
+
+function renderGrid(svg) {
+  RINGS.forEach(r => {
+    const rad = (r / MAXR) * plotR;
+    svg.appendChild(svgEl('circle', { class: 'grid-circle', cx, cy, r: rad }));
+    const lbl = svgEl('text', { class: 'grid-ring-label', x: cx + 4, y: cy - rad - 3 });
+    lbl.textContent = r + ' kt';
+    svg.appendChild(lbl);
+  });
+  const angleTicks = [0,30,60,90,120,150,180];
+  angleTicks.forEach(a => {
+    const [x, y] = polarToXY(a, MAXR * 1.08);
+    svg.appendChild(svgEl('line', { class: 'angle-line', x1: cx, y1: cy, x2: x, y2: y }));
+    const [lx, ly] = polarToXY(a, MAXR * 1.17);
+    const lbl = svgEl('text', { class: 'angle-label', x: lx, y: ly + 3 });
+    lbl.textContent = a + '°';
+    svg.appendChild(lbl);
+  });
+  const wl = svgEl('text', { class: 'wind-label', x: cx, y: cy - plotR * 1.24 });
+  wl.textContent = '↑ TRUE WIND';
+  svg.appendChild(wl);
+}
+
+function renderBoats(svg, tooltip) {
+  BOATS.forEach(k => {
+    const d = DATA[k];
+    const pts = (d.series[String(currentTWS)] || []).slice().sort((a,b) => a.a - b.a);
+    if (!pts.length) return;
+    const coords = pts.map(p => polarToXY(p.a, p.s));
+    const dAttr = coords.map((c,i) => (i===0?'M':'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
+    svg.appendChild(svgEl('path', { class: 'boat-path', d: dAttr, stroke: d.color }));
+    pts.forEach((p, i) => {
+      const [x, y] = coords[i];
+      const dot = svgEl('circle', { class: 'boat-dot', cx: x, cy: y, r: 4, fill: d.color });
+      dot.addEventListener('mousemove', (ev) => showTip(ev, tooltip, `${d.name}: ${p.s.toFixed(2)} kt @ ${p.a.toFixed(1)}°`));
+      dot.addEventListener('mouseleave', () => { tooltip.style.opacity = 0; });
+      svg.appendChild(dot);
+    });
+  });
+}
+
+function showTip(ev, tooltip, text) {
+  const wrap = document.querySelector('.wrap-chart');
+  const rect = wrap.getBoundingClientRect();
+  tooltip.textContent = text;
+  tooltip.style.left = (ev.clientX - rect.left) + 'px';
+  tooltip.style.top = (ev.clientY - rect.top) + 'px';
+  tooltip.style.opacity = 1;
+}
+
+function renderTable() {
+  const wrap = document.getElementById('tableWrap');
+  const pts = BOATS.map(k => DATA[k]);
+  let angles = new Set();
+  pts.forEach(d => (d.series[String(currentTWS)]||[]).forEach(p => angles.add(p.a)));
+  angles = Array.from(angles).sort((a,b)=>a-b);
+  let html = '<table class="datatable"><thead><tr><th>TWA</th>' + BOATS.map(k=>`<th>${DATA[k].name} (kt)</th>`).join('') + '</tr></thead><tbody>';
+  angles.forEach(a => {
+    html += `<tr><td>${a.toFixed(1)}°</td>`;
+    BOATS.forEach(k => {
+      const p = (DATA[k].series[String(currentTWS)]||[]).find(pt => pt.a === a);
+      html += `<td>${p ? p.s.toFixed(2) : '–'}</td>`;
+    });
+    html += '</tr>';
+  });
+  html += '</tbody></table>';
+  wrap.innerHTML = html;
+}
+
+function render() {
+  const svg = document.getElementById('chart');
+  const tooltip = document.getElementById('tooltip');
+  svg.innerHTML = '';
+  renderGrid(svg);
+  renderBoats(svg, tooltip);
+  if (tableMode) renderTable();
+}
+
+document.getElementById('viewToggle').addEventListener('click', function() {
+  tableMode = !tableMode;
+  this.setAttribute('aria-pressed', tableMode ? 'true' : 'false');
+  this.textContent = tableMode ? 'Show chart' : 'Show table';
+  document.getElementById('tableWrap').classList.toggle('hidden', !tableMode);
+  document.querySelector('.wrap-chart').classList.toggle('hidden', tableMode);
+  if (tableMode) renderTable();
+});
+
+buildTWSButtons();
+buildLegend();
+render();
+</script>
+</body>
+</html>
