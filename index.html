@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>ORC Boat Speed Polar Comparison</title>
+<title>BAMAK vs Class 2 Opponents — Boat Speed Polar Comparison</title>
 <style>
   .viz-root {
     color-scheme: light;
@@ -65,16 +65,17 @@
   .tws-slider-label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
   .tws-slider-value { font-size: 15px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
   .tws-slider {
-    -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
-    border-radius: 2px; background: var(--grid); outline: none; cursor: pointer; display: block;
+    -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
+    border-radius: 3px; background: var(--grid); outline: none; cursor: pointer; display: block;
+    padding: 10px 0; background-clip: content-box;
   }
   .tws-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
-    background: var(--text-primary); border: 2px solid var(--surface-1);
+    -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--text-primary); border: 3px solid var(--surface-1);
     box-shadow: 0 0 0 1px var(--border); cursor: pointer;
   }
   .tws-slider::-moz-range-thumb {
-    width: 16px; height: 16px; border-radius: 50%; border: none;
+    width: 24px; height: 24px; border-radius: 50%; border: none;
     background: var(--text-primary); box-shadow: 0 0 0 3px var(--surface-1), 0 0 0 4px var(--border); cursor: pointer;
   }
   .tws-ticks { position: relative; height: 14px; margin-top: 3px; }
@@ -83,80 +84,122 @@
     font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
   }
   .view-toggle {
-    font-family: inherit; font-size: 12.5px; font-weight: 600;
+    font-family: inherit; font-size: 13px; font-weight: 600;
     border: 1px solid var(--border); background: transparent;
-    color: var(--text-secondary); border-radius: 7px; padding: 6px 11px; cursor: pointer;
+    color: var(--text-secondary); border-radius: 8px; padding: 10px 16px; cursor: pointer;
+    min-height: 40px;
   }
-  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 4px 0 14px; }
-  .legend-item { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--text-primary); }
-  .swatch { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
+  .legend { display: flex; gap: 2px 14px; flex-wrap: wrap; margin: 4px 0 14px; }
+  .legend-item {
+    display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-primary);
+    user-select: none; padding: 7px 2px; min-height: 40px;
+  }
+  .legend-cb-wrap {
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    padding: 10px; margin: -10px; flex: none;
+  }
+  .legend-item input[type="checkbox"] {
+    cursor: pointer; margin: 0; width: 19px; height: 19px; flex: none; accent-color: var(--text-primary);
+  }
+  .legend-item input[type="checkbox"]:disabled { cursor: default; opacity: 0.6; }
+  .legend-item.is-off .legend-name, .legend-item.is-off .legend-sub { color: var(--text-muted); }
+  .legend-item.is-off .swatch { opacity: 0.35; }
+  .legend-name {
+    cursor: pointer; padding: 2px 0; border-bottom: 1.5px dashed transparent;
+  }
+  .legend-item.is-highlighted .legend-name {
+    font-weight: 700; border-bottom-color: currentColor;
+  }
+  .swatch { width: 12px; height: 3px; border-radius: 2px; display: inline-block; flex: none; }
   .legend-sub { color: var(--text-muted); font-size: 11.5px; }
-  svg { display: block; width: 100%; height: auto; }
+  svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
   .grid-circle { fill: none; stroke: var(--grid); stroke-width: 1; }
-  .grid-ring-label { fill: var(--text-muted); font-size: 9.5px; }
+  .grid-ring-label { fill: var(--text-muted); font-size: 10.5px; }
   .angle-line { stroke: var(--grid); stroke-width: 1; }
-  .angle-label { fill: var(--text-muted); font-size: 10px; text-anchor: middle; }
-  .boat-path { fill: none; stroke-width: 2; }
-  .boat-dot { stroke: var(--surface-1); stroke-width: 1.4; }
-  .wind-label { fill: var(--text-secondary); font-size: 11px; font-weight: 700; text-anchor: middle; }
+  .angle-label { fill: var(--text-muted); font-size: 11px; text-anchor: middle; }
+  .boat-path { fill: none; stroke-width: 2; transition: opacity 0.12s; }
+  .boat-dot { stroke: none; transition: opacity 0.12s; }
+  .boat-dot-hit { fill: transparent; pointer-events: all; cursor: pointer; }
+  .wind-label { fill: var(--text-secondary); font-size: 11.5px; font-weight: 700; text-anchor: middle; }
   .tooltip {
     position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.08s;
     background: var(--text-primary); color: var(--surface-1);
-    font-size: 11.5px; padding: 6px 9px; border-radius: 6px; white-space: nowrap;
-    transform: translate(-50%, -115%);
+    font-size: 12px; padding: 6px 9px; border-radius: 6px; white-space: nowrap;
+    transform: translate(-50%, -115%); max-width: 90vw;
   }
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
   table.datatable { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; }
   table.datatable th, table.datatable td {
-    text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--grid);
-    font-variant-numeric: tabular-nums;
+    text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--grid);
+    font-variant-numeric: tabular-nums; white-space: nowrap;
   }
-  table.datatable th:first-child, table.datatable td:first-child { text-align: left; }
+  table.datatable th:first-child, table.datatable td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface-1); }
   table.datatable thead th { color: var(--text-secondary); font-weight: 600; font-size: 11.5px; }
   .hidden { display: none !important; }
   .foot { margin-top: 14px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
   .wrap-chart { position: relative; }
+
+  @media (max-width: 520px) {
+    .viz-root { padding: 12px; }
+    h1 { font-size: 17px; }
+    .subtitle { font-size: 12px; margin-bottom: 14px; }
+    .card { padding: 14px; border-radius: 10px; }
+    .controls { flex-direction: column; align-items: stretch; }
+    .tws-slider-group { flex-basis: auto; min-width: 0; }
+    .view-toggle { width: 100%; }
+    .legend { gap: 0; flex-direction: column; }
+    .legend-item { width: 100%; border-bottom: 1px solid var(--grid); }
+    .legend-item:last-child { border-bottom: none; }
+  }
 </style>
 </head>
 <body>
 <div class="viz-root">
-  <h1>Boat Speed Polar Comparison</h1>
-  <p class="subtitle">Rated boat speed (BSP, knots) by true wind angle — ORC International Certificates, 2026 season</p>
+  <h1>BAMAK vs Class 2 Opponents — Boat Speed Polar Comparison</h1>
+  <p class="subtitle">Rated boat speed (BSP, knots, axis capped at 12kt) by true wind angle — wind speed 4–18kt — ORC International Certificates, 2026 season. Only BAMAK is shown by default — check a boat to add it, tap its name to isolate it.</p>
   <div class="card">
     <div class="controls">
       <div class="tws-slider-group">
         <div class="tws-slider-header">
           <span class="tws-slider-label">True Wind Speed</span>
-          <span class="tws-slider-value" id="twsValue">12.0 kt</span>
+          <span class="tws-slider-value" id="twsValue">10.0 kt</span>
         </div>
-        <input type="range" class="tws-slider" id="twsSlider" min="4" max="24" step="0.1" value="12" aria-label="True wind speed, 4 to 24 knots">
+        <input type="range" class="tws-slider" id="twsSlider" min="4" max="18" step="0.1" value="10" aria-label="True wind speed, 4 to 18 knots">
         <div class="tws-ticks" id="twsTicks"></div>
       </div>
       <button class="view-toggle" id="viewToggle" aria-pressed="false">Show table</button>
     </div>
     <div class="legend" id="legend"></div>
     <div class="wrap-chart">
-      <svg id="chart" viewBox="0 0 640 500"></svg>
+      <svg id="chart" viewBox="0 0 720 560"></svg>
       <div class="tooltip" id="tooltip"></div>
     </div>
     <div id="tableWrap" class="hidden"></div>
     <div class="foot">
-      Beat and Run points use each boat's own optimal VMG angle at that wind speed (converted from certificate VMG to boat speed). 52°–150° points are boat speed as published directly on the certificate. Tick marks below the slider (4, 6, 8, 10, 12, 14, 16, 20, 24 kt) are the certificate's actual measured wind speeds; values in between are linearly interpolated.<br>
+      Beat and Run points use each boat's own optimal VMG angle at that wind speed (converted from certificate VMG to boat speed). 52°–150° points are boat speed as published directly on the certificate. Tick marks below the slider (4, 6, 8, 10, 12, 14, 16 kt) are the certificate's actual measured wind speeds; values in between are linearly interpolated. The wind-speed slider runs 4–18kt; the boat-speed rings are zoomed to a 12kt max (rather than 20kt) to keep this fleet readable. BAMAK is checked by default and always shown, drawn solid and on top of any opponents you add; tap a boat's name (not its checkbox) to isolate it against BAMAK.<br>
+      LUNA-VARADERO ISLA VERDE (ESP-14089) is not included — her certificate no longer appears in ORC's active Spain registry, so a current polar table couldn't be pulled.<br>
       Source: ORC International Certificates 2026, data.orc.org.
     </div>
   </div>
 </div>
 
 <script>
-const DATA = {"VICKY": {"name": "VICKY", "sailno": "ESP 8377", "class": "VROLIJK 37", "color": "#2a78d6", "series": {"4": [{"a": 45.6, "s": 3.63}, {"a": 52, "s": 3.97}, {"a": 60, "s": 4.25}, {"a": 75, "s": 4.46}, {"a": 90, "s": 4.33}, {"a": 110, "s": 4.18}, {"a": 120, "s": 4.03}, {"a": 135, "s": 3.5}, {"a": 150, "s": 2.9}, {"a": 139.5, "s": 3.3}], "6": [{"a": 42.5, "s": 4.87}, {"a": 52, "s": 5.43}, {"a": 60, "s": 5.7}, {"a": 75, "s": 5.88}, {"a": 90, "s": 5.76}, {"a": 110, "s": 5.8}, {"a": 120, "s": 5.62}, {"a": 135, "s": 5.02}, {"a": 150, "s": 4.22}, {"a": 144.7, "s": 4.47}], "8": [{"a": 40.8, "s": 5.77}, {"a": 52, "s": 6.44}, {"a": 60, "s": 6.67}, {"a": 75, "s": 6.82}, {"a": 90, "s": 6.85}, {"a": 110, "s": 6.94}, {"a": 120, "s": 6.77}, {"a": 135, "s": 6.22}, {"a": 150, "s": 5.38}, {"a": 149.2, "s": 5.43}], "10": [{"a": 39.4, "s": 6.33}, {"a": 52, "s": 7.02}, {"a": 60, "s": 7.2}, {"a": 75, "s": 7.33}, {"a": 90, "s": 7.38}, {"a": 110, "s": 7.55}, {"a": 120, "s": 7.45}, {"a": 135, "s": 7.08}, {"a": 150, "s": 6.39}, {"a": 152.2, "s": 6.27}], "12": [{"a": 38.4, "s": 6.52}, {"a": 52, "s": 7.25}, {"a": 60, "s": 7.45}, {"a": 75, "s": 7.64}, {"a": 90, "s": 7.68}, {"a": 110, "s": 7.95}, {"a": 120, "s": 7.91}, {"a": 135, "s": 7.61}, {"a": 150, "s": 7.15}, {"a": 158.5, "s": 6.79}], "14": [{"a": 38.0, "s": 6.61}, {"a": 52, "s": 7.35}, {"a": 60, "s": 7.56}, {"a": 75, "s": 7.84}, {"a": 90, "s": 7.97}, {"a": 110, "s": 8.25}, {"a": 120, "s": 8.34}, {"a": 135, "s": 8.08}, {"a": 150, "s": 7.64}, {"a": 166.2, "s": 7.15}], "16": [{"a": 38.2, "s": 6.71}, {"a": 52, "s": 7.42}, {"a": 60, "s": 7.63}, {"a": 75, "s": 7.96}, {"a": 90, "s": 8.21}, {"a": 110, "s": 8.46}, {"a": 120, "s": 8.75}, {"a": 135, "s": 8.56}, {"a": 150, "s": 8.07}, {"a": 172.7, "s": 7.47}], "20": [{"a": 38.4, "s": 6.79}, {"a": 52, "s": 7.49}, {"a": 60, "s": 7.72}, {"a": 75, "s": 8.12}, {"a": 90, "s": 8.53}, {"a": 110, "s": 8.84}, {"a": 120, "s": 9.33}, {"a": 135, "s": 9.7}, {"a": 150, "s": 9.03}, {"a": 175.4, "s": 8.24}], "24": [{"a": 39.8, "s": 6.78}, {"a": 52, "s": 7.47}, {"a": 60, "s": 7.73}, {"a": 75, "s": 8.18}, {"a": 90, "s": 8.71}, {"a": 110, "s": 9.21}, {"a": 120, "s": 9.84}, {"a": 135, "s": 11.29}, {"a": 150, "s": 10.35}, {"a": 165.4, "s": 9.43}]}}, "BAMAK": {"name": "BAMAK", "sailno": "ESP-10206", "class": "SINERGIA 40 Mod.", "color": "#eb6834", "series": {"4": [{"a": 46.1, "s": 3.75}, {"a": 52, "s": 4.08}, {"a": 60, "s": 4.39}, {"a": 75, "s": 4.61}, {"a": 90, "s": 4.48}, {"a": 110, "s": 4.32}, {"a": 120, "s": 4.17}, {"a": 135, "s": 3.63}, {"a": 150, "s": 3.01}, {"a": 138.8, "s": 3.47}], "6": [{"a": 42.9, "s": 5.01}, {"a": 52, "s": 5.58}, {"a": 60, "s": 5.88}, {"a": 75, "s": 6.09}, {"a": 90, "s": 5.97}, {"a": 110, "s": 6.0}, {"a": 120, "s": 5.83}, {"a": 135, "s": 5.21}, {"a": 150, "s": 4.39}, {"a": 144.4, "s": 4.67}], "8": [{"a": 41.2, "s": 5.89}, {"a": 52, "s": 6.57}, {"a": 60, "s": 6.83}, {"a": 75, "s": 7.02}, {"a": 90, "s": 7.02}, {"a": 110, "s": 7.17}, {"a": 120, "s": 7.01}, {"a": 135, "s": 6.44}, {"a": 150, "s": 5.59}, {"a": 148.7, "s": 5.66}], "10": [{"a": 40.1, "s": 6.5}, {"a": 52, "s": 7.21}, {"a": 60, "s": 7.42}, {"a": 75, "s": 7.57}, {"a": 90, "s": 7.6}, {"a": 110, "s": 7.82}, {"a": 120, "s": 7.72}, {"a": 135, "s": 7.33}, {"a": 150, "s": 6.61}, {"a": 152.5, "s": 6.47}], "12": [{"a": 39.0, "s": 6.74}, {"a": 52, "s": 7.49}, {"a": 60, "s": 7.71}, {"a": 75, "s": 7.91}, {"a": 90, "s": 7.94}, {"a": 110, "s": 8.25}, {"a": 120, "s": 8.22}, {"a": 135, "s": 7.9}, {"a": 150, "s": 7.39}, {"a": 157.9, "s": 7.03}], "14": [{"a": 38.6, "s": 6.88}, {"a": 52, "s": 7.62}, {"a": 60, "s": 7.84}, {"a": 75, "s": 8.13}, {"a": 90, "s": 8.26}, {"a": 110, "s": 8.54}, {"a": 120, "s": 8.68}, {"a": 135, "s": 8.41}, {"a": 150, "s": 7.92}, {"a": 165.1, "s": 7.4}], "16": [{"a": 38.2, "s": 6.95}, {"a": 52, "s": 7.7}, {"a": 60, "s": 7.93}, {"a": 75, "s": 8.27}, {"a": 90, "s": 8.52}, {"a": 110, "s": 8.76}, {"a": 120, "s": 9.09}, {"a": 135, "s": 8.91}, {"a": 150, "s": 8.39}, {"a": 170.5, "s": 7.76}], "20": [{"a": 38.2, "s": 7.06}, {"a": 52, "s": 7.8}, {"a": 60, "s": 8.04}, {"a": 75, "s": 8.45}, {"a": 90, "s": 8.86}, {"a": 110, "s": 9.13}, {"a": 120, "s": 9.66}, {"a": 135, "s": 10.1}, {"a": 150, "s": 9.41}, {"a": 170.9, "s": 8.63}], "24": [{"a": 38.9, "s": 7.09}, {"a": 52, "s": 7.82}, {"a": 60, "s": 8.08}, {"a": 75, "s": 8.53}, {"a": 90, "s": 9.07}, {"a": 110, "s": 9.54}, {"a": 120, "s": 10.16}, {"a": 135, "s": 11.7}, {"a": 150, "s": 10.81}, {"a": 163.3, "s": 9.91}]}}, "HYDRA_YOUTH": {"name": "HYDRA YOUTH", "sailno": "ESP-20511", "class": "MELGES 32", "color": "#1baf7a", "series": {"4": [{"a": 44.9, "s": 4.21}, {"a": 52, "s": 4.65}, {"a": 60, "s": 4.99}, {"a": 75, "s": 5.27}, {"a": 90, "s": 5.36}, {"a": 110, "s": 5.19}, {"a": 120, "s": 4.88}, {"a": 135, "s": 4.33}, {"a": 150, "s": 3.6}, {"a": 139.9, "s": 4.08}], "6": [{"a": 42.1, "s": 5.65}, {"a": 52, "s": 6.3}, {"a": 60, "s": 6.59}, {"a": 75, "s": 6.78}, {"a": 90, "s": 6.94}, {"a": 110, "s": 6.88}, {"a": 120, "s": 6.7}, {"a": 135, "s": 6.14}, {"a": 150, "s": 5.17}, {"a": 142.1, "s": 5.68}], "8": [{"a": 38.9, "s": 6.27}, {"a": 52, "s": 7.01}, {"a": 60, "s": 7.23}, {"a": 75, "s": 7.45}, {"a": 90, "s": 7.49}, {"a": 110, "s": 7.73}, {"a": 120, "s": 7.7}, {"a": 135, "s": 7.31}, {"a": 150, "s": 6.41}, {"a": 147.2, "s": 6.61}], "10": [{"a": 37.7, "s": 6.48}, {"a": 52, "s": 7.25}, {"a": 60, "s": 7.51}, {"a": 75, "s": 7.91}, {"a": 90, "s": 8.08}, {"a": 110, "s": 8.41}, {"a": 120, "s": 8.46}, {"a": 135, "s": 8.25}, {"a": 150, "s": 7.29}, {"a": 152.9, "s": 7.12}], "12": [{"a": 37.6, "s": 6.63}, {"a": 52, "s": 7.4}, {"a": 60, "s": 7.7}, {"a": 75, "s": 8.18}, {"a": 90, "s": 8.59}, {"a": 110, "s": 8.91}, {"a": 120, "s": 9.25}, {"a": 135, "s": 9.34}, {"a": 150, "s": 8.16}, {"a": 150.5, "s": 8.12}], "14": [{"a": 37.4, "s": 6.7}, {"a": 52, "s": 7.51}, {"a": 60, "s": 7.85}, {"a": 75, "s": 8.41}, {"a": 90, "s": 8.96}, {"a": 110, "s": 9.37}, {"a": 120, "s": 9.91}, {"a": 135, "s": 10.44}, {"a": 150, "s": 9.19}, {"a": 144.9, "s": 9.73}], "16": [{"a": 37.4, "s": 6.77}, {"a": 52, "s": 7.6}, {"a": 60, "s": 7.96}, {"a": 75, "s": 8.6}, {"a": 90, "s": 9.3}, {"a": 110, "s": 9.87}, {"a": 120, "s": 10.54}, {"a": 135, "s": 11.36}, {"a": 150, "s": 10.48}, {"a": 144.8, "s": 11.1}], "20": [{"a": 38.2, "s": 6.81}, {"a": 52, "s": 7.67}, {"a": 60, "s": 8.09}, {"a": 75, "s": 8.86}, {"a": 90, "s": 9.8}, {"a": 110, "s": 11.07}, {"a": 120, "s": 11.53}, {"a": 135, "s": 13.31}, {"a": 150, "s": 13.85}, {"a": 148.3, "s": 14.1}], "24": [{"a": 40.1, "s": 6.79}, {"a": 52, "s": 7.58}, {"a": 60, "s": 8.03}, {"a": 75, "s": 8.92}, {"a": 90, "s": 10.15}, {"a": 110, "s": 11.87}, {"a": 120, "s": 12.65}, {"a": 135, "s": 15.25}, {"a": 150, "s": 17.19}, {"a": 152.5, "s": 17.1}]}}, "WILMA": {"name": "WILMA", "sailno": "ESP-32227", "class": "MELGES 32", "color": "#eda100", "series": {"4": [{"a": 44.9, "s": 4.19}, {"a": 52, "s": 4.63}, {"a": 60, "s": 4.98}, {"a": 75, "s": 5.25}, {"a": 90, "s": 5.13}, {"a": 110, "s": 5.01}, {"a": 120, "s": 4.84}, {"a": 135, "s": 4.34}, {"a": 150, "s": 3.61}, {"a": 139.9, "s": 4.09}], "6": [{"a": 42.3, "s": 5.66}, {"a": 52, "s": 6.31}, {"a": 60, "s": 6.6}, {"a": 75, "s": 6.79}, {"a": 90, "s": 6.69}, {"a": 110, "s": 6.84}, {"a": 120, "s": 6.74}, {"a": 135, "s": 6.16}, {"a": 150, "s": 5.18}, {"a": 142.0, "s": 5.7}], "8": [{"a": 38.8, "s": 6.33}, {"a": 52, "s": 7.06}, {"a": 60, "s": 7.27}, {"a": 75, "s": 7.47}, {"a": 90, "s": 7.45}, {"a": 110, "s": 7.68}, {"a": 120, "s": 7.76}, {"a": 135, "s": 7.35}, {"a": 150, "s": 6.42}, {"a": 147.1, "s": 6.62}], "10": [{"a": 37.6, "s": 6.56}, {"a": 52, "s": 7.32}, {"a": 60, "s": 7.59}, {"a": 75, "s": 7.99}, {"a": 90, "s": 8.11}, {"a": 110, "s": 8.24}, {"a": 120, "s": 8.54}, {"a": 135, "s": 8.33}, {"a": 150, "s": 7.31}, {"a": 152.9, "s": 7.13}], "12": [{"a": 37.1, "s": 6.68}, {"a": 52, "s": 7.48}, {"a": 60, "s": 7.8}, {"a": 75, "s": 8.29}, {"a": 90, "s": 8.7}, {"a": 110, "s": 8.77}, {"a": 120, "s": 9.19}, {"a": 135, "s": 9.46}, {"a": 150, "s": 8.22}, {"a": 150.2, "s": 8.2}], "14": [{"a": 37.0, "s": 6.77}, {"a": 52, "s": 7.61}, {"a": 60, "s": 7.96}, {"a": 75, "s": 8.54}, {"a": 90, "s": 9.11}, {"a": 110, "s": 9.3}, {"a": 120, "s": 9.85}, {"a": 135, "s": 10.59}, {"a": 150, "s": 9.3}, {"a": 144.2, "s": 9.93}], "16": [{"a": 36.9, "s": 6.83}, {"a": 52, "s": 7.71}, {"a": 60, "s": 8.09}, {"a": 75, "s": 8.75}, {"a": 90, "s": 9.48}, {"a": 110, "s": 9.99}, {"a": 120, "s": 10.5}, {"a": 135, "s": 11.53}, {"a": 150, "s": 10.64}, {"a": 144.2, "s": 11.36}], "20": [{"a": 37.5, "s": 6.88}, {"a": 52, "s": 7.81}, {"a": 60, "s": 8.24}, {"a": 75, "s": 9.05}, {"a": 90, "s": 10.04}, {"a": 110, "s": 11.33}, {"a": 120, "s": 11.74}, {"a": 135, "s": 13.33}, {"a": 150, "s": 14.14}, {"a": 148.4, "s": 14.37}], "24": [{"a": 39.3, "s": 6.86}, {"a": 52, "s": 7.72}, {"a": 60, "s": 8.19}, {"a": 75, "s": 9.14}, {"a": 90, "s": 10.43}, {"a": 110, "s": 12.21}, {"a": 120, "s": 12.97}, {"a": 135, "s": 15.31}, {"a": 150, "s": 17.47}, {"a": 152.6, "s": 17.38}]}}};
+const DATA = {"BAMAK":{"name":"BAMAK","sailno":"ESP-10206","class":"Sinergia 40","color":"#2a78d6","series":{"4":[{"a":46.1,"s":2.6},{"a":52,"s":4.08},{"a":60,"s":4.39},{"a":75,"s":4.61},{"a":90,"s":4.48},{"a":110,"s":4.32},{"a":120,"s":4.17},{"a":135,"s":3.63},{"a":150,"s":3.01},{"a":138.8,"s":2.61}],"6":[{"a":42.9,"s":3.67},{"a":52,"s":5.58},{"a":60,"s":5.88},{"a":75,"s":6.09},{"a":90,"s":5.97},{"a":110,"s":6.0},{"a":120,"s":5.83},{"a":135,"s":5.21},{"a":150,"s":4.39},{"a":144.4,"s":3.8}],"8":[{"a":41.2,"s":4.43},{"a":52,"s":6.57},{"a":60,"s":6.83},{"a":75,"s":7.02},{"a":90,"s":7.02},{"a":110,"s":7.17},{"a":120,"s":7.01},{"a":135,"s":6.44},{"a":150,"s":5.59},{"a":148.7,"s":4.84}],"10":[{"a":40.1,"s":4.97},{"a":52,"s":7.21},{"a":60,"s":7.42},{"a":75,"s":7.57},{"a":90,"s":7.6},{"a":110,"s":7.82},{"a":120,"s":7.72},{"a":135,"s":7.33},{"a":150,"s":6.61},{"a":152.5,"s":5.74}],"12":[{"a":39.0,"s":5.24},{"a":52,"s":7.49},{"a":60,"s":7.71},{"a":75,"s":7.91},{"a":90,"s":7.94},{"a":110,"s":8.25},{"a":120,"s":8.22},{"a":135,"s":7.9},{"a":150,"s":7.39},{"a":157.9,"s":6.51}],"14":[{"a":38.6,"s":5.38},{"a":52,"s":7.62},{"a":60,"s":7.84},{"a":75,"s":8.13},{"a":90,"s":8.26},{"a":110,"s":8.54},{"a":120,"s":8.68},{"a":135,"s":8.41},{"a":150,"s":7.92},{"a":165.1,"s":7.15}],"16":[{"a":38.2,"s":5.46},{"a":52,"s":7.7},{"a":60,"s":7.93},{"a":75,"s":8.27},{"a":90,"s":8.52},{"a":110,"s":8.76},{"a":120,"s":9.09},{"a":135,"s":8.91},{"a":150,"s":8.39},{"a":170.5,"s":7.65}],"20":[{"a":38.2,"s":5.55},{"a":52,"s":7.8},{"a":60,"s":8.04},{"a":75,"s":8.45},{"a":90,"s":8.86},{"a":110,"s":9.13},{"a":120,"s":9.66},{"a":135,"s":10.1},{"a":150,"s":9.41},{"a":170.9,"s":8.52}],"24":[{"a":38.9,"s":5.52},{"a":52,"s":7.82},{"a":60,"s":8.08},{"a":75,"s":8.53},{"a":90,"s":9.07},{"a":110,"s":9.54},{"a":120,"s":10.16},{"a":135,"s":11.7},{"a":150,"s":10.81},{"a":163.3,"s":9.49}]}},"SOLERIG_6":{"name":"SOLERIG VI","sailno":"ESP-2002","class":"Grand Soleil 42 R05","color":"#eb6834","series":{"4":[{"a":45.5,"s":2.81},{"a":52,"s":4.4},{"a":60,"s":4.73},{"a":75,"s":4.99},{"a":90,"s":4.87},{"a":110,"s":4.61},{"a":120,"s":4.44},{"a":135,"s":3.92},{"a":150,"s":3.23},{"a":138.8,"s":2.8}],"6":[{"a":43.0,"s":3.98},{"a":52,"s":6.04},{"a":60,"s":6.35},{"a":75,"s":6.56},{"a":90,"s":6.43},{"a":110,"s":6.39},{"a":120,"s":6.22},{"a":135,"s":5.59},{"a":150,"s":4.68},{"a":142.0,"s":4.06}],"8":[{"a":40.8,"s":4.86},{"a":52,"s":7.14},{"a":60,"s":7.38},{"a":75,"s":7.52},{"a":90,"s":7.54},{"a":110,"s":7.63},{"a":120,"s":7.48},{"a":135,"s":6.89},{"a":150,"s":5.91},{"a":145.6,"s":5.12}],"10":[{"a":39.3,"s":5.4},{"a":52,"s":7.72},{"a":60,"s":7.92},{"a":75,"s":8.06},{"a":90,"s":8.15},{"a":110,"s":8.34},{"a":120,"s":8.22},{"a":135,"s":7.78},{"a":150,"s":6.96},{"a":149.7,"s":6.03}],"12":[{"a":38.2,"s":5.64},{"a":52,"s":7.95},{"a":60,"s":8.19},{"a":75,"s":8.43},{"a":90,"s":8.46},{"a":110,"s":8.91},{"a":120,"s":8.84},{"a":135,"s":8.38},{"a":150,"s":7.74},{"a":156.1,"s":6.76}],"14":[{"a":37.7,"s":5.78},{"a":52,"s":8.08},{"a":60,"s":8.32},{"a":75,"s":8.67},{"a":90,"s":8.85},{"a":110,"s":9.41},{"a":120,"s":9.49},{"a":135,"s":9.01},{"a":150,"s":8.27},{"a":163.7,"s":7.42}],"16":[{"a":37.4,"s":5.86},{"a":52,"s":8.18},{"a":60,"s":8.43},{"a":75,"s":8.83},{"a":90,"s":9.17},{"a":110,"s":9.78},{"a":120,"s":10.18},{"a":135,"s":9.7},{"a":150,"s":8.83},{"a":168.2,"s":7.96}],"20":[{"a":37.4,"s":5.94},{"a":52,"s":8.29},{"a":60,"s":8.57},{"a":75,"s":9.07},{"a":90,"s":9.65},{"a":110,"s":10.52},{"a":120,"s":11.29},{"a":135,"s":11.51},{"a":150,"s":10.16},{"a":165.1,"s":8.98}],"24":[{"a":38.6,"s":5.86},{"a":52,"s":8.3},{"a":60,"s":8.62},{"a":75,"s":9.2},{"a":90,"s":9.99},{"a":110,"s":11.16},{"a":120,"s":12.32},{"a":135,"s":14.36},{"a":150,"s":12.38},{"a":140.8,"s":10.72}]}},"AGAPANTUX":{"name":"AGAPANTUX","sailno":"ESP-8876","class":"X-41 OD","color":"#1baf7a","series":{"4":[{"a":45.6,"s":2.75},{"a":52,"s":4.31},{"a":60,"s":4.63},{"a":75,"s":4.87},{"a":90,"s":4.73},{"a":110,"s":4.36},{"a":120,"s":4.2},{"a":135,"s":3.66},{"a":150,"s":3.03},{"a":139.0,"s":2.62}],"6":[{"a":42.7,"s":3.9},{"a":52,"s":5.91},{"a":60,"s":6.21},{"a":75,"s":6.41},{"a":90,"s":6.29},{"a":110,"s":6.11},{"a":120,"s":5.93},{"a":135,"s":5.29},{"a":150,"s":4.44},{"a":142.1,"s":3.84}],"8":[{"a":40.7,"s":4.74},{"a":52,"s":6.96},{"a":60,"s":7.19},{"a":75,"s":7.34},{"a":90,"s":7.27},{"a":110,"s":7.32},{"a":120,"s":7.17},{"a":135,"s":6.58},{"a":150,"s":5.67},{"a":147.8,"s":4.91}],"10":[{"a":38.9,"s":5.28},{"a":52,"s":7.52},{"a":60,"s":7.71},{"a":75,"s":7.83},{"a":90,"s":7.81},{"a":110,"s":7.97},{"a":120,"s":7.88},{"a":135,"s":7.48},{"a":150,"s":6.73},{"a":151.9,"s":5.84}],"12":[{"a":37.6,"s":5.53},{"a":52,"s":7.77},{"a":60,"s":7.96},{"a":75,"s":8.15},{"a":90,"s":8.18},{"a":110,"s":8.4},{"a":120,"s":8.36},{"a":135,"s":8.04},{"a":150,"s":7.53},{"a":157.2,"s":6.62}],"14":[{"a":37.1,"s":5.66},{"a":52,"s":7.88},{"a":60,"s":8.09},{"a":75,"s":8.38},{"a":90,"s":8.49},{"a":110,"s":8.76},{"a":120,"s":8.82},{"a":135,"s":8.52},{"a":150,"s":8.05},{"a":164.8,"s":7.26}],"16":[{"a":37.2,"s":5.74},{"a":52,"s":7.96},{"a":60,"s":8.18},{"a":75,"s":8.52},{"a":90,"s":8.77},{"a":110,"s":8.99},{"a":120,"s":9.26},{"a":135,"s":9.01},{"a":150,"s":8.5},{"a":170.5,"s":7.77}],"20":[{"a":37.1,"s":5.82},{"a":52,"s":8.05},{"a":60,"s":8.29},{"a":75,"s":8.72},{"a":90,"s":9.15},{"a":110,"s":9.4},{"a":120,"s":9.92},{"a":135,"s":10.19},{"a":150,"s":9.49},{"a":173.6,"s":8.61}],"24":[{"a":38.2,"s":5.75},{"a":52,"s":8.06},{"a":60,"s":8.3},{"a":75,"s":8.83},{"a":90,"s":9.39},{"a":110,"s":9.83},{"a":120,"s":10.48},{"a":135,"s":11.86},{"a":150,"s":10.83},{"a":164.5,"s":9.55}]}},"MAGANO":{"name":"MAGANO","sailno":"POL-77","class":"Marina 36 Sport","color":"#eda100","series":{"4":[{"a":46.0,"s":2.57},{"a":52,"s":4.03},{"a":60,"s":4.34},{"a":75,"s":4.57},{"a":90,"s":4.42},{"a":110,"s":4.43},{"a":120,"s":4.29},{"a":135,"s":3.8},{"a":150,"s":3.14},{"a":139.3,"s":2.72}],"6":[{"a":43.0,"s":3.67},{"a":52,"s":5.6},{"a":60,"s":5.9},{"a":75,"s":6.11},{"a":90,"s":6.05},{"a":110,"s":6.21},{"a":120,"s":6.07},{"a":135,"s":5.44},{"a":150,"s":4.57},{"a":142.4,"s":3.96}],"8":[{"a":40.8,"s":4.49},{"a":52,"s":6.63},{"a":60,"s":6.87},{"a":75,"s":7.03},{"a":90,"s":7.13},{"a":110,"s":7.33},{"a":120,"s":7.25},{"a":135,"s":6.74},{"a":150,"s":5.77},{"a":146.2,"s":5.0}],"10":[{"a":38.9,"s":5.01},{"a":52,"s":7.18},{"a":60,"s":7.37},{"a":75,"s":7.52},{"a":90,"s":7.66},{"a":110,"s":7.93},{"a":120,"s":7.9},{"a":135,"s":7.54},{"a":150,"s":6.79},{"a":149.5,"s":5.88}],"12":[{"a":37.8,"s":5.24},{"a":52,"s":7.39},{"a":60,"s":7.61},{"a":75,"s":7.85},{"a":90,"s":7.95},{"a":110,"s":8.38},{"a":120,"s":8.48},{"a":135,"s":8.12},{"a":150,"s":7.5},{"a":157.2,"s":6.56}],"14":[{"a":37.5,"s":5.35},{"a":52,"s":7.51},{"a":60,"s":7.73},{"a":75,"s":8.08},{"a":90,"s":8.26},{"a":110,"s":8.74},{"a":120,"s":9.02},{"a":135,"s":8.74},{"a":150,"s":8.0},{"a":165.1,"s":7.15}],"16":[{"a":37.3,"s":5.43},{"a":52,"s":7.59},{"a":60,"s":7.83},{"a":75,"s":8.23},{"a":90,"s":8.56},{"a":110,"s":9.12},{"a":120,"s":9.46},{"a":135,"s":9.46},{"a":150,"s":8.53},{"a":167.3,"s":7.64}],"20":[{"a":37.8,"s":5.49},{"a":52,"s":7.68},{"a":60,"s":7.94},{"a":75,"s":8.44},{"a":90,"s":8.96},{"a":110,"s":9.76},{"a":120,"s":10.49},{"a":135,"s":11.28},{"a":150,"s":9.91},{"a":160.9,"s":8.66}],"24":[{"a":39.3,"s":5.38},{"a":52,"s":7.65},{"a":60,"s":7.95},{"a":75,"s":8.52},{"a":90,"s":9.2},{"a":110,"s":10.13},{"a":120,"s":11.43},{"a":135,"s":12.98},{"a":150,"s":12.49},{"a":143.6,"s":10.82}]}},"BALBOA":{"name":"BALBOA","sailno":"ESP-8744","class":"Grand Soleil 45","color":"#4a3aa7","series":{"4":[{"a":47.5,"s":2.54},{"a":52,"s":4.02},{"a":60,"s":4.37},{"a":75,"s":4.63},{"a":90,"s":4.48},{"a":110,"s":4.03},{"a":120,"s":3.89},{"a":135,"s":3.39},{"a":150,"s":2.8},{"a":138.1,"s":2.42}],"6":[{"a":43.9,"s":3.64},{"a":52,"s":5.61},{"a":60,"s":5.94},{"a":75,"s":6.17},{"a":90,"s":6.04},{"a":110,"s":5.74},{"a":120,"s":5.56},{"a":135,"s":4.97},{"a":150,"s":4.15},{"a":144.7,"s":3.6}],"8":[{"a":41.9,"s":4.46},{"a":52,"s":6.69},{"a":60,"s":6.98},{"a":75,"s":7.18},{"a":90,"s":7.1},{"a":110,"s":7.01},{"a":120,"s":6.83},{"a":135,"s":6.23},{"a":150,"s":5.36},{"a":148.7,"s":4.64}],"10":[{"a":40.5,"s":5.06},{"a":52,"s":7.41},{"a":60,"s":7.65},{"a":75,"s":7.82},{"a":90,"s":7.79},{"a":110,"s":7.87},{"a":120,"s":7.74},{"a":135,"s":7.24},{"a":150,"s":6.43},{"a":150.7,"s":5.57}],"12":[{"a":39.7,"s":5.4},{"a":52,"s":7.79},{"a":60,"s":8.01},{"a":75,"s":8.2},{"a":90,"s":8.22},{"a":110,"s":8.36},{"a":120,"s":8.3},{"a":135,"s":7.96},{"a":150,"s":7.33},{"a":155.0,"s":6.4}],"14":[{"a":38.9,"s":5.56},{"a":52,"s":7.96},{"a":60,"s":8.19},{"a":75,"s":8.44},{"a":90,"s":8.51},{"a":110,"s":8.72},{"a":120,"s":8.71},{"a":135,"s":8.44},{"a":150,"s":7.98},{"a":160.9,"s":7.09}],"16":[{"a":38.6,"s":5.65},{"a":52,"s":8.04},{"a":60,"s":8.28},{"a":75,"s":8.59},{"a":90,"s":8.76},{"a":110,"s":8.99},{"a":120,"s":9.08},{"a":135,"s":8.85},{"a":150,"s":8.42},{"a":166.4,"s":7.66}],"20":[{"a":38.5,"s":5.73},{"a":52,"s":8.13},{"a":60,"s":8.38},{"a":75,"s":8.76},{"a":90,"s":9.1},{"a":110,"s":9.35},{"a":120,"s":9.73},{"a":135,"s":9.69},{"a":150,"s":9.21},{"a":176.3,"s":8.5}],"24":[{"a":38.9,"s":5.7},{"a":52,"s":8.15},{"a":60,"s":8.42},{"a":75,"s":8.87},{"a":90,"s":9.31},{"a":110,"s":9.63},{"a":120,"s":10.14},{"a":135,"s":10.66},{"a":150,"s":10.08},{"a":176.3,"s":9.21}]}},"TABOGA_IV":{"name":"TABOGA IV","sailno":"ESP-55971","class":"Sydney (BH) 41","color":"#e87ba4","series":{"4":[{"a":45.8,"s":2.69},{"a":52,"s":4.21},{"a":60,"s":4.53},{"a":75,"s":4.76},{"a":90,"s":4.61},{"a":110,"s":4.38},{"a":120,"s":4.23},{"a":135,"s":3.69},{"a":150,"s":3.06},{"a":139.9,"s":2.65}],"6":[{"a":42.6,"s":3.85},{"a":52,"s":5.85},{"a":60,"s":6.16},{"a":75,"s":6.37},{"a":90,"s":6.24},{"a":110,"s":6.18},{"a":120,"s":6.02},{"a":135,"s":5.36},{"a":150,"s":4.52},{"a":142.9,"s":3.91}],"8":[{"a":40.5,"s":4.71},{"a":52,"s":6.93},{"a":60,"s":7.18},{"a":75,"s":7.34},{"a":90,"s":7.27},{"a":110,"s":7.41},{"a":120,"s":7.28},{"a":135,"s":6.69},{"a":150,"s":5.77},{"a":147.1,"s":4.99}],"10":[{"a":38.8,"s":5.27},{"a":52,"s":7.52},{"a":60,"s":7.72},{"a":75,"s":7.86},{"a":90,"s":7.84},{"a":110,"s":8.05},{"a":120,"s":7.98},{"a":135,"s":7.62},{"a":150,"s":6.85},{"a":150.8,"s":5.94}],"12":[{"a":37.4,"s":5.53},{"a":52,"s":7.77},{"a":60,"s":7.98},{"a":75,"s":8.18},{"a":90,"s":8.21},{"a":110,"s":8.45},{"a":120,"s":8.47},{"a":135,"s":8.19},{"a":150,"s":7.66},{"a":156.5,"s":6.73}],"14":[{"a":36.9,"s":5.66},{"a":52,"s":7.87},{"a":60,"s":8.09},{"a":75,"s":8.42},{"a":90,"s":8.54},{"a":110,"s":8.73},{"a":120,"s":8.93},{"a":135,"s":8.71},{"a":150,"s":8.19},{"a":163.9,"s":7.36}],"16":[{"a":37.1,"s":5.73},{"a":52,"s":7.96},{"a":60,"s":8.19},{"a":75,"s":8.54},{"a":90,"s":8.82},{"a":110,"s":8.97},{"a":120,"s":9.33},{"a":135,"s":9.26},{"a":150,"s":8.68},{"a":168.7,"s":7.86}],"20":[{"a":37.1,"s":5.82},{"a":52,"s":8.04},{"a":60,"s":8.29},{"a":75,"s":8.74},{"a":90,"s":9.2},{"a":110,"s":9.38},{"a":120,"s":9.99},{"a":135,"s":10.68},{"a":150,"s":9.85},{"a":166.9,"s":8.76}],"24":[{"a":38.2,"s":5.74},{"a":52,"s":8.05},{"a":60,"s":8.32},{"a":75,"s":8.85},{"a":90,"s":9.45},{"a":110,"s":10.03},{"a":120,"s":10.57},{"a":135,"s":12.18},{"a":150,"s":11.54},{"a":153.6,"s":10.01}]}},"CHAITAN":{"name":"CHAITÁN II","sailno":"ESP-5029","class":"First 40.7","color":"#e34948","series":{"4":[{"a":45.3,"s":2.74},{"a":52,"s":4.27},{"a":60,"s":4.58},{"a":75,"s":4.8},{"a":90,"s":4.67},{"a":110,"s":4.17},{"a":120,"s":4.01},{"a":135,"s":3.48},{"a":150,"s":2.88},{"a":139.0,"s":2.49}],"6":[{"a":42.3,"s":3.84},{"a":52,"s":5.78},{"a":60,"s":6.06},{"a":75,"s":6.25},{"a":90,"s":6.13},{"a":110,"s":5.83},{"a":120,"s":5.64},{"a":135,"s":5.04},{"a":150,"s":4.25},{"a":144.4,"s":3.68}],"8":[{"a":40.4,"s":4.61},{"a":52,"s":6.75},{"a":60,"s":6.97},{"a":75,"s":7.12},{"a":90,"s":7.06},{"a":110,"s":7.0},{"a":120,"s":6.83},{"a":135,"s":6.25},{"a":150,"s":5.43},{"a":148.9,"s":4.7}],"10":[{"a":38.8,"s":5.07},{"a":52,"s":7.24},{"a":60,"s":7.43},{"a":75,"s":7.57},{"a":90,"s":7.58},{"a":110,"s":7.64},{"a":120,"s":7.55},{"a":135,"s":7.16},{"a":150,"s":6.45},{"a":152.5,"s":5.6}],"12":[{"a":37.9,"s":5.27},{"a":52,"s":7.44},{"a":60,"s":7.64},{"a":75,"s":7.84},{"a":90,"s":7.92},{"a":110,"s":8.04},{"a":120,"s":8.01},{"a":135,"s":7.72},{"a":150,"s":7.23},{"a":157.7,"s":6.36}],"14":[{"a":37.5,"s":5.37},{"a":52,"s":7.54},{"a":60,"s":7.74},{"a":75,"s":8.01},{"a":90,"s":8.18},{"a":110,"s":8.36},{"a":120,"s":8.41},{"a":135,"s":8.16},{"a":150,"s":7.74},{"a":164.8,"s":7.0}],"16":[{"a":37.3,"s":5.44},{"a":52,"s":7.6},{"a":60,"s":7.81},{"a":75,"s":8.11},{"a":90,"s":8.39},{"a":110,"s":8.56},{"a":120,"s":8.79},{"a":135,"s":8.6},{"a":150,"s":8.16},{"a":171.4,"s":7.5}],"20":[{"a":37.8,"s":5.48},{"a":52,"s":7.67},{"a":60,"s":7.89},{"a":75,"s":8.27},{"a":90,"s":8.67},{"a":110,"s":8.92},{"a":120,"s":9.34},{"a":135,"s":9.57},{"a":150,"s":9.03},{"a":176.8,"s":8.28}],"24":[{"a":39.1,"s":5.4},{"a":52,"s":7.67},{"a":60,"s":7.89},{"a":75,"s":8.35},{"a":90,"s":8.86},{"a":110,"s":9.26},{"a":120,"s":9.78},{"a":135,"s":10.84},{"a":150,"s":10.13},{"a":170.5,"s":9.09}]}},"BRUJO":{"name":"BRUJO","sailno":"ESP-8493","class":"Grand Soleil 37 BC","color":"#008300","series":{"4":[{"a":46.0,"s":2.52},{"a":52,"s":3.95},{"a":60,"s":4.25},{"a":75,"s":4.47},{"a":90,"s":4.34},{"a":110,"s":4.13},{"a":120,"s":3.98},{"a":135,"s":3.46},{"a":150,"s":2.86},{"a":138.6,"s":2.48}],"6":[{"a":42.7,"s":3.57},{"a":52,"s":5.43},{"a":60,"s":5.71},{"a":75,"s":5.90},{"a":90,"s":5.78},{"a":110,"s":5.75},{"a":120,"s":5.57},{"a":135,"s":4.99},{"a":150,"s":4.21},{"a":144.8,"s":3.64}],"8":[{"a":40.8,"s":4.33},{"a":52,"s":6.40},{"a":60,"s":6.65},{"a":75,"s":6.82},{"a":90,"s":6.79},{"a":110,"s":6.91},{"a":120,"s":6.73},{"a":135,"s":6.17},{"a":150,"s":5.37},{"a":149.6,"s":4.65}],"10":[{"a":39.5,"s":4.85},{"a":52,"s":6.99},{"a":60,"s":7.18},{"a":75,"s":7.33},{"a":90,"s":7.37},{"a":110,"s":7.53},{"a":120,"s":7.43},{"a":135,"s":7.05},{"a":150,"s":6.37},{"a":152.8,"s":5.53}],"12":[{"a":38.6,"s":5.10},{"a":52,"s":7.25},{"a":60,"s":7.44},{"a":75,"s":7.62},{"a":90,"s":7.67},{"a":110,"s":7.90},{"a":120,"s":7.87},{"a":135,"s":7.59},{"a":150,"s":7.13},{"a":158.5,"s":6.29}],"14":[{"a":38.2,"s":5.21},{"a":52,"s":7.35},{"a":60,"s":7.55},{"a":75,"s":7.81},{"a":90,"s":7.93},{"a":110,"s":8.19},{"a":120,"s":8.23},{"a":135,"s":8.00},{"a":150,"s":7.62},{"a":166.0,"s":6.91}],"16":[{"a":38.0,"s":5.27},{"a":52,"s":7.42},{"a":60,"s":7.63},{"a":75,"s":7.92},{"a":90,"s":8.14},{"a":110,"s":8.39},{"a":120,"s":8.58},{"a":135,"s":8.41},{"a":150,"s":8.00},{"a":172.7,"s":7.39}],"20":[{"a":38.1,"s":5.32},{"a":52,"s":7.49},{"a":60,"s":7.71},{"a":75,"s":8.06},{"a":90,"s":8.42},{"a":110,"s":8.72},{"a":120,"s":9.10},{"a":135,"s":9.27},{"a":150,"s":8.80},{"a":177.2,"s":8.12}],"24":[{"a":39.1,"s":5.23},{"a":52,"s":7.49},{"a":60,"s":7.71},{"a":75,"s":8.13},{"a":90,"s":8.59},{"a":110,"s":8.92},{"a":120,"s":9.48},{"a":135,"s":10.29},{"a":150,"s":9.72},{"a":176.3,"s":8.86}]}}};
 const BOATS = Object.keys(DATA);
-const TWS_LIST = [4,6,8,10,12,14,16,20,24];
-const MAXR = 20; // outer ring speed (kt)
-const RINGS = [4,8,12,16,20];
+const TWS_LIST = [4,6,8,10,12,14,16,20,24]; // all wind speeds measured on the certificates (used for interpolation)
+const SLIDER_MAX_TWS = 18; // wind-speed slider is capped here, independent of the boat-speed axis below
+const MAXR = 12; // outer ring: boat speed (kt) — zoomed in so this closely-matched fleet stays readable
+const RINGS = [2,4,6,8,10,12];
+const PINNED = 'BAMAK'; // always shown, checkbox disabled
 
-let currentTWS = 12;
+let currentTWS = 10;
 let tableMode = false;
+let checkedBoats = new Set([PINNED]); // only BAMAK shown on load; check others to compare
+let hoveredBoat = null; // set by tapping/clicking a legend name to isolate one boat's line
 
-const cx = 320, cy = 250, plotR = 210;
+// Chart geometry is recomputed responsively to fill the container width — see
+// updateChartDimensions(). These are just the initial/fallback values.
+let cx = 350, cy = 280, plotR = 230;
 
 function polarToXY(angleDeg, speed) {
   const r = Math.min(speed / MAXR, 1.08) * plotR;
@@ -189,8 +232,9 @@ function buildTWSSlider() {
   const slider = document.getElementById('twsSlider');
   const valueEl = document.getElementById('twsValue');
   const ticks = document.getElementById('twsTicks');
-  TWS_LIST.forEach(v => {
-    const pct = ((v - 4) / (24 - 4)) * 100;
+  const twsMin = 4, twsMax = SLIDER_MAX_TWS;
+  TWS_LIST.filter(v => v <= twsMax).forEach(v => {
+    const pct = ((v - twsMin) / (twsMax - twsMin)) * 100;
     const el = document.createElement('span');
     el.className = 'tws-tick';
     el.style.left = pct + '%';
@@ -211,10 +255,57 @@ function buildLegend() {
   el.innerHTML = '';
   BOATS.forEach(k => {
     const d = DATA[k];
+    const isPinned = k === PINNED;
     const item = document.createElement('div');
     item.className = 'legend-item';
-    item.innerHTML = `<span class="swatch" style="background:${d.color}"></span>${d.name} <span class="legend-sub">(${d.class}, ${d.sailno})</span>`;
+    item.dataset.key = k;
+    if (!checkedBoats.has(k)) item.classList.add('is-off');
+
+    const cb = document.createElement('input');
+    cb.type = 'checkbox';
+    cb.checked = checkedBoats.has(k);
+    if (isPinned) { cb.disabled = true; cb.title = 'BAMAK is always shown'; }
+    cb.addEventListener('change', () => {
+      if (cb.checked) checkedBoats.add(k); else checkedBoats.delete(k);
+      item.classList.toggle('is-off', !cb.checked);
+      render();
+    });
+
+    const swatch = document.createElement('span');
+    swatch.className = 'swatch';
+    swatch.style.background = d.color;
+
+    // Name is a separate tap/click target from the checkbox: tapping it isolates
+    // this boat's line against BAMAK, which works the same on touch and mouse
+    // (unlike :hover, which mobile devices — 95% of usage here — mostly ignore).
+    const name = document.createElement('span');
+    name.className = 'legend-name';
+    name.textContent = d.name;
+    name.addEventListener('click', () => {
+      hoveredBoat = (hoveredBoat === k) ? null : k;
+      refreshLegendHighlight();
+      render();
+    });
+
+    const sub = document.createElement('span');
+    sub.className = 'legend-sub';
+    sub.textContent = ` (${d.class}, ${d.sailno})`;
+
+    // Wrap the checkbox in its own <label> so the tappable area extends past
+    // the tiny 19px box (via CSS padding) without a bigger visible checkbox.
+    const cbWrap = document.createElement('label');
+    cbWrap.className = 'legend-cb-wrap';
+    cbWrap.appendChild(cb);
+
+    item.append(cbWrap, swatch, name, sub);
     el.appendChild(item);
+  });
+  refreshLegendHighlight();
+}
+
+function refreshLegendHighlight() {
+  document.querySelectorAll('.legend-item').forEach(item => {
+    item.classList.toggle('is-highlighted', item.dataset.key === hoveredBoat);
   });
 }
 
@@ -236,6 +327,10 @@ function renderGrid(svg) {
   angleTicks.forEach(a => {
     const [x, y] = polarToXY(a, MAXR * 1.08);
     svg.appendChild(svgEl('line', { class: 'angle-line', x1: cx, y1: cy, x2: x, y2: y }));
+    // Skip the "0°" text label — it would sit right on top of the ring-speed
+    // labels (which run straight up the same spoke); the wind-arrow annotation
+    // and grid line already make the 0°/bow direction obvious.
+    if (a === 0) return;
     const [lx, ly] = polarToXY(a, MAXR * 1.17);
     const lbl = svgEl('text', { class: 'angle-label', x: lx, y: ly + 3 });
     lbl.textContent = a + '°';
@@ -247,59 +342,93 @@ function renderGrid(svg) {
 }
 
 function renderBoats(svg, tooltip) {
-  BOATS.forEach(k => {
+  // Draw BAMAK last (on top) so the reference boat never gets buried under
+  // opponents' lines; when a boat is hovered, draw it last instead so it's on top.
+  const order = BOATS.filter(k => checkedBoats.has(k));
+  const drawOrder = order.slice().sort((a, b) => {
+    const rank = k => (k === hoveredBoat ? 2 : k === PINNED ? 1 : 0);
+    return rank(a) - rank(b);
+  });
+  drawOrder.forEach(k => {
     const d = DATA[k];
+    const isDimmed = hoveredBoat && hoveredBoat !== k && k !== PINNED;
+    const isFocused = hoveredBoat === k || (!hoveredBoat && k === PINNED);
     const pts = getInterpolatedSeries(k, currentTWS).slice().sort((a,b) => a.a - b.a);
     if (!pts.length) return;
     const coords = pts.map(p => polarToXY(p.a, p.s));
     const dAttr = coords.map((c,i) => (i===0?'M':'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
-    svg.appendChild(svgEl('path', { class: 'boat-path', d: dAttr, stroke: d.color }));
+    const path = svgEl('path', {
+      class: 'boat-path', d: dAttr, stroke: d.color,
+      'stroke-width': isFocused ? 3 : 2,
+      opacity: isDimmed ? 0.16 : 1,
+    });
+    svg.appendChild(path);
     pts.forEach((p, i) => {
       const [x, y] = coords[i];
-      const dot = svgEl('circle', { class: 'boat-dot', cx: x, cy: y, r: 4, fill: d.color });
-      dot.addEventListener('mousemove', (ev) => showTip(ev, tooltip, `${d.name}: ${p.s.toFixed(2)} kt @ ${p.a.toFixed(1)}°`));
-      dot.addEventListener('mouseleave', () => { tooltip.style.opacity = 0; });
+      const dot = svgEl('circle', {
+        class: 'boat-dot', cx: x, cy: y, r: isFocused ? 2.4 : 2, fill: d.color,
+        opacity: isDimmed ? 0.16 : 1,
+      });
       svg.appendChild(dot);
+      // Invisible larger circle as the actual tap/hover target — the visible dot
+      // is deliberately small (see readability fix above) but a ~2px target is
+      // too small to tap reliably, so the hit area is separate and bigger.
+      const hit = svgEl('circle', { class: 'boat-dot-hit', cx: x, cy: y, r: 10 });
+      const label = `${d.name}: ${p.s.toFixed(2)} kt @ ${p.a.toFixed(1)}°`;
+      hit.addEventListener('mousemove', (ev) => showTip(ev, label));
+      hit.addEventListener('mouseleave', () => hideTip());
+      hit.addEventListener('click', (ev) => {
+        ev.stopPropagation();
+        if (activeTipLabel === label) hideTip(); else showTip(ev, label);
+      });
+      svg.appendChild(hit);
     });
   });
 }
 
-function showTip(ev, tooltip, text) {
+let activeTipLabel = null;
+function showTip(ev, text) {
+  const tooltip = document.getElementById('tooltip');
   const wrap = document.querySelector('.wrap-chart');
   const rect = wrap.getBoundingClientRect();
+  activeTipLabel = text;
   tooltip.textContent = text;
   tooltip.style.left = (ev.clientX - rect.left) + 'px';
   tooltip.style.top = (ev.clientY - rect.top) + 'px';
   tooltip.style.opacity = 1;
 }
+function hideTip() {
+  activeTipLabel = null;
+  document.getElementById('tooltip').style.opacity = 0;
+}
 
 function renderTable() {
   const wrap = document.getElementById('tableWrap');
+  const boats = BOATS.filter(k => checkedBoats.has(k));
   const seriesByBoat = {};
-  BOATS.forEach(k => { seriesByBoat[k] = getInterpolatedSeries(k, currentTWS); });
+  boats.forEach(k => { seriesByBoat[k] = getInterpolatedSeries(k, currentTWS); });
   const round1 = v => Math.round(v * 10) / 10;
   let angles = new Set();
-  BOATS.forEach(k => seriesByBoat[k].forEach(p => angles.add(round1(p.a))));
+  boats.forEach(k => seriesByBoat[k].forEach(p => angles.add(round1(p.a))));
   angles = Array.from(angles).sort((a,b)=>a-b);
-  let html = '<table class="datatable"><thead><tr><th>TWA</th>' + BOATS.map(k=>`<th>${DATA[k].name} (kt)</th>`).join('') + '</tr></thead><tbody>';
+  let html = '<table class="datatable"><thead><tr><th>TWA</th>' + boats.map(k=>`<th>${DATA[k].name} (kt)</th>`).join('') + '</tr></thead><tbody>';
   angles.forEach(a => {
     html += `<tr><td>${a.toFixed(1)}°</td>`;
-    BOATS.forEach(k => {
+    boats.forEach(k => {
       const p = seriesByBoat[k].find(pt => round1(pt.a) === a);
       html += `<td>${p ? p.s.toFixed(2) : '–'}</td>`;
     });
     html += '</tr>';
   });
   html += '</tbody></table>';
-  wrap.innerHTML = html;
+  wrap.innerHTML = `<div class="table-scroll">${html}</div>`;
 }
 
 function render() {
   const svg = document.getElementById('chart');
-  const tooltip = document.getElementById('tooltip');
   svg.innerHTML = '';
   renderGrid(svg);
-  renderBoats(svg, tooltip);
+  renderBoats(svg);
   if (tableMode) renderTable();
 }
 
@@ -312,9 +441,29 @@ document.getElementById('viewToggle').addEventListener('click', function() {
   if (tableMode) renderTable();
 });
 
+// Tapping anywhere outside a data point (including the empty parts of the SVG,
+// which is most of it on a phone) dismisses any open tooltip.
+document.addEventListener('click', () => { if (activeTipLabel) hideTip(); });
+
+// The chart's viewBox is recomputed to match the actual on-screen pixel width
+// of its container, so text and touch targets stay a true, legible size on a
+// small phone instead of shrinking along with a fixed large viewBox.
+const BASE_W = 720, BASE_H = 560;
+function updateChartDimensions() {
+  const wrap = document.querySelector('.wrap-chart');
+  const w = Math.max(280, wrap.clientWidth || BASE_W);
+  const h = w * (BASE_H / BASE_W);
+  document.getElementById('chart').setAttribute('viewBox', `0 0 ${w} ${h}`);
+  cx = w * (350 / BASE_W);
+  cy = h * (280 / BASE_H);
+  plotR = w * (230 / BASE_W);
+  render();
+}
+window.addEventListener('resize', () => { clearTimeout(window._rzT); window._rzT = setTimeout(updateChartDimensions, 120); });
+
 buildTWSSlider();
 buildLegend();
-render();
+updateChartDimensions();
 </script>
 </body>
 </html>
