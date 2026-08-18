@@ -60,15 +60,27 @@
     display: flex; align-items: center; justify-content: space-between;
     flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
   }
-  .tws-group { display: flex; gap: 4px; flex-wrap: wrap; }
-  .tws-btn {
-    font-family: inherit; font-size: 12.5px; font-weight: 600;
-    border: 1px solid var(--border); background: transparent;
-    color: var(--text-secondary); border-radius: 7px;
-    padding: 6px 11px; cursor: pointer;
+  .tws-slider-group { flex: 1 1 300px; min-width: 240px; }
+  .tws-slider-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
+  .tws-slider-label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
+  .tws-slider-value { font-size: 15px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
+  .tws-slider {
+    -webkit-appearance: none; appearance: none; width: 100%; height: 4px;
+    border-radius: 2px; background: var(--grid); outline: none; cursor: pointer; display: block;
   }
-  .tws-btn[aria-pressed="true"] {
-    background: var(--text-primary); color: var(--surface-1); border-color: var(--text-primary);
+  .tws-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 16px; height: 16px; border-radius: 50%;
+    background: var(--text-primary); border: 2px solid var(--surface-1);
+    box-shadow: 0 0 0 1px var(--border); cursor: pointer;
+  }
+  .tws-slider::-moz-range-thumb {
+    width: 16px; height: 16px; border-radius: 50%; border: none;
+    background: var(--text-primary); box-shadow: 0 0 0 3px var(--surface-1), 0 0 0 4px var(--border); cursor: pointer;
+  }
+  .tws-ticks { position: relative; height: 14px; margin-top: 3px; }
+  .tws-tick {
+    position: absolute; transform: translateX(-50%);
+    font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
   }
   .view-toggle {
     font-family: inherit; font-size: 12.5px; font-weight: 600;
@@ -111,7 +123,14 @@
   <p class="subtitle">Rated boat speed (BSP, knots) by true wind angle — ORC International Certificates, 2026 season</p>
   <div class="card">
     <div class="controls">
-      <div class="tws-group" role="group" aria-label="True wind speed"></div>
+      <div class="tws-slider-group">
+        <div class="tws-slider-header">
+          <span class="tws-slider-label">True Wind Speed</span>
+          <span class="tws-slider-value" id="twsValue">12.0 kt</span>
+        </div>
+        <input type="range" class="tws-slider" id="twsSlider" min="4" max="24" step="0.1" value="12" aria-label="True wind speed, 4 to 24 knots">
+        <div class="tws-ticks" id="twsTicks"></div>
+      </div>
       <button class="view-toggle" id="viewToggle" aria-pressed="false">Show table</button>
     </div>
     <div class="legend" id="legend"></div>
@@ -121,7 +140,7 @@
     </div>
     <div id="tableWrap" class="hidden"></div>
     <div class="foot">
-      Beat and Run points use each boat's own optimal VMG angle at that wind speed (converted from certificate VMG to boat speed). 52°–150° points are boat speed as published directly on the certificate.<br>
+      Beat and Run points use each boat's own optimal VMG angle at that wind speed (converted from certificate VMG to boat speed). 52°–150° points are boat speed as published directly on the certificate. Tick marks below the slider (4, 6, 8, 10, 12, 14, 16, 20, 24 kt) are the certificate's actual measured wind speeds; values in between are linearly interpolated.<br>
       Source: ORC International Certificates 2026, data.orc.org.
     </div>
   </div>
@@ -145,20 +164,45 @@ function polarToXY(angleDeg, speed) {
   return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)];
 }
 
-function buildTWSButtons() {
-  const g = document.querySelector('.tws-group');
-  TWS_LIST.forEach(tws => {
-    const b = document.createElement('button');
-    b.className = 'tws-btn';
-    b.textContent = tws + ' kt';
-    b.setAttribute('aria-pressed', tws === currentTWS ? 'true' : 'false');
-    b.addEventListener('click', () => {
-      currentTWS = tws;
-      document.querySelectorAll('.tws-btn').forEach(x => x.setAttribute('aria-pressed', 'false'));
-      b.setAttribute('aria-pressed', 'true');
-      render();
-    });
-    g.appendChild(b);
+// Linearly interpolate a boat's 10-point series (beat VMG, 52°..150°, run VMG)
+// between the two bracketing certificate wind speeds. The 8 fixed-angle points
+// (52-150) keep a constant angle at every TWS, so only their speed changes;
+// the beat/run VMG points shift in both angle and speed, which is interpolated too.
+function getInterpolatedSeries(boatKey, tws) {
+  const d = DATA[boatKey];
+  const keys = TWS_LIST;
+  if (tws <= keys[0]) return d.series[String(keys[0])];
+  if (tws >= keys[keys.length - 1]) return d.series[String(keys[keys.length - 1])];
+  let lo = keys[0], hi = keys[keys.length - 1];
+  for (let i = 0; i < keys.length - 1; i++) {
+    if (tws >= keys[i] && tws <= keys[i + 1]) { lo = keys[i]; hi = keys[i + 1]; break; }
+  }
+  const sLo = d.series[String(lo)], sHi = d.series[String(hi)];
+  const f = (tws - lo) / (hi - lo);
+  return sLo.map((p, i) => {
+    const q = sHi[i];
+    return { a: p.a + (q.a - p.a) * f, s: p.s + (q.s - p.s) * f };
+  });
+}
+
+function buildTWSSlider() {
+  const slider = document.getElementById('twsSlider');
+  const valueEl = document.getElementById('twsValue');
+  const ticks = document.getElementById('twsTicks');
+  TWS_LIST.forEach(v => {
+    const pct = ((v - 4) / (24 - 4)) * 100;
+    const el = document.createElement('span');
+    el.className = 'tws-tick';
+    el.style.left = pct + '%';
+    el.textContent = v;
+    ticks.appendChild(el);
+  });
+  slider.value = currentTWS;
+  valueEl.textContent = currentTWS.toFixed(1) + ' kt';
+  slider.addEventListener('input', () => {
+    currentTWS = parseFloat(slider.value);
+    valueEl.textContent = currentTWS.toFixed(1) + ' kt';
+    render();
   });
 }
 
@@ -205,7 +249,7 @@ function renderGrid(svg) {
 function renderBoats(svg, tooltip) {
   BOATS.forEach(k => {
     const d = DATA[k];
-    const pts = (d.series[String(currentTWS)] || []).slice().sort((a,b) => a.a - b.a);
+    const pts = getInterpolatedSeries(k, currentTWS).slice().sort((a,b) => a.a - b.a);
     if (!pts.length) return;
     const coords = pts.map(p => polarToXY(p.a, p.s));
     const dAttr = coords.map((c,i) => (i===0?'M':'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
@@ -231,15 +275,17 @@ function showTip(ev, tooltip, text) {
 
 function renderTable() {
   const wrap = document.getElementById('tableWrap');
-  const pts = BOATS.map(k => DATA[k]);
+  const seriesByBoat = {};
+  BOATS.forEach(k => { seriesByBoat[k] = getInterpolatedSeries(k, currentTWS); });
+  const round1 = v => Math.round(v * 10) / 10;
   let angles = new Set();
-  pts.forEach(d => (d.series[String(currentTWS)]||[]).forEach(p => angles.add(p.a)));
+  BOATS.forEach(k => seriesByBoat[k].forEach(p => angles.add(round1(p.a))));
   angles = Array.from(angles).sort((a,b)=>a-b);
   let html = '<table class="datatable"><thead><tr><th>TWA</th>' + BOATS.map(k=>`<th>${DATA[k].name} (kt)</th>`).join('') + '</tr></thead><tbody>';
   angles.forEach(a => {
     html += `<tr><td>${a.toFixed(1)}°</td>`;
     BOATS.forEach(k => {
-      const p = (DATA[k].series[String(currentTWS)]||[]).find(pt => pt.a === a);
+      const p = seriesByBoat[k].find(pt => round1(pt.a) === a);
       html += `<td>${p ? p.s.toFixed(2) : '–'}</td>`;
     });
     html += '</tr>';
@@ -266,7 +312,7 @@ document.getElementById('viewToggle').addEventListener('click', function() {
   if (tableMode) renderTable();
 });
 
-buildTWSButtons();
+buildTWSSlider();
 buildLegend();
 render();
 </script>
