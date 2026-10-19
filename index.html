@@ -1,432 +1,577 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Melges 32 vs BAMAK/VICKY — Boat Speed Polar Comparison</title>
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}[hidden]:not([hidden=until-found]){display:none!important}</style></head><body>
+<title>Melges 32 APH Estimator</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap">
 <style>
-  .viz-root {
-    color-scheme: light;
-    --surface-1:      #fcfcfb;
-    --page:           #f9f9f7;
-    --text-primary:   #0b0b0b;
-    --text-secondary: #52514e;
-    --text-muted:     #898781;
-    --grid:           #e1e0d9;
-    --axis:           #c3c2b7;
-    --border:         rgba(11,11,11,0.10);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root:where(:not([data-theme="light"])) .viz-root {
-      color-scheme: dark;
-      --surface-1:      #1a1a19;
-      --page:           #0d0d0d;
-      --text-primary:   #ffffff;
-      --text-secondary: #c3c2b7;
-      --text-muted:     #898781;
-      --grid:           #2c2c2a;
-      --axis:           #383835;
-      --border:         rgba(255,255,255,0.10);
-    }
-  }
-  :root[data-theme="dark"] .viz-root {
+:root{
+  color-scheme: light;
+  --ground:#f4f7f9;
+  --surface:#ffffff;
+  --surface-sunk:#eef2f6;
+  --ink:#0f1419;
+  --ink-2:#44515e;
+  --ink-muted:#6b7885;
+  --rule:#dde4ea;
+  --rule-strong:#c3ced8;
+  --orc:#1f4e78;
+  --orc-ink:#1f4e78;
+  --series:#2a78d6;
+  --accent:#eb6834;
+  --accent-soft:rgba(235,104,52,.14);
+  --pole-fast:#2a78d6;
+  --pole-slow:#e34948;
+  --warn:#fab219;
+  --warn-ink:#7a5200;
+  --shadow:0 1px 2px rgba(15,20,25,.05), 0 8px 24px -12px rgba(15,20,25,.18);
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --sans:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
     color-scheme: dark;
-    --surface-1:      #1a1a19;
-    --page:           #0d0d0d;
-    --text-primary:   #ffffff;
-    --text-secondary: #c3c2b7;
-    --text-muted:     #898781;
-    --grid:           #2c2c2a;
-    --axis:           #383835;
-    --border:         rgba(255,255,255,0.10);
+    --ground:#0c1014;
+    --surface:#161b21;
+    --surface-sunk:#1d242c;
+    --ink:#eef2f6;
+    --ink-2:#b3c0cc;
+    --ink-muted:#8b98a5;
+    --rule:#252e37;
+    --rule-strong:#374350;
+    --orc:#7fb2e4;
+    --orc-ink:#9cc4ec;
+    --series:#3987e5;
+    --accent:#d95926;
+    --accent-soft:rgba(217,89,38,.20);
+    --pole-fast:#3987e5;
+    --pole-slow:#e66767;
+    --warn:#fab219;
+    --warn-ink:#f0c665;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
   }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-    background: var(--page);
-    color: var(--text-primary);
-  }
-  .viz-root { padding: 24px; max-width: 1100px; margin: 0 auto; }
-  h1 { font-size: 19px; margin: 0 0 2px; font-weight: 700; }
-  .subtitle { font-size: 13px; color: var(--text-secondary); margin: 0 0 18px; }
-  .card {
-    background: var(--surface-1);
-    border: 1px solid var(--border);
-    border-radius: 12px;
-    padding: 20px;
-  }
-  .controls {
-    display: flex; align-items: center; justify-content: space-between;
-    flex-wrap: wrap; gap: 12px; margin-bottom: 16px;
-  }
-  .tws-slider-group { flex: 1 1 300px; min-width: 240px; }
-  .tws-slider-header { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px; }
-  .tws-slider-label { font-size: 12.5px; font-weight: 600; color: var(--text-secondary); }
-  .tws-slider-value { font-size: 15px; font-weight: 700; color: var(--text-primary); font-variant-numeric: tabular-nums; }
-  .tws-slider {
-    -webkit-appearance: none; appearance: none; width: 100%; height: 6px;
-    border-radius: 3px; background: var(--grid); outline: none; cursor: pointer; display: block;
-    padding: 10px 0; background-clip: content-box; box-sizing: content-box;
-  }
-  .tws-slider::-webkit-slider-thumb {
-    -webkit-appearance: none; appearance: none; width: 24px; height: 24px; border-radius: 50%;
-    background: var(--text-primary); border: 3px solid var(--surface-1);
-    box-shadow: 0 0 0 1px var(--border); cursor: pointer;
-  }
-  .tws-slider::-moz-range-thumb {
-    width: 24px; height: 24px; border-radius: 50%; border: none;
-    background: var(--text-primary); box-shadow: 0 0 0 3px var(--surface-1), 0 0 0 4px var(--border); cursor: pointer;
-  }
-  .tws-ticks { position: relative; height: 14px; margin-top: 3px; }
-  .tws-tick {
-    position: absolute; transform: translateX(-50%);
-    font-size: 10px; color: var(--text-muted); font-variant-numeric: tabular-nums;
-  }
-  .view-toggle {
-    font-family: inherit; font-size: 13px; font-weight: 600;
-    border: 1px solid var(--border); background: transparent;
-    color: var(--text-secondary); border-radius: 8px; padding: 10px 16px; cursor: pointer;
-    min-height: 40px;
-  }
-  .legend { display: flex; gap: 2px 14px; flex-wrap: wrap; margin: 4px 0 14px; }
-  .legend-item {
-    display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--text-primary);
-    user-select: none; padding: 7px 2px; min-height: 40px;
-  }
-  .legend-cb-wrap {
-    display: flex; align-items: center; justify-content: center; cursor: pointer;
-    padding: 10px; margin: -10px; flex: none;
-  }
-  .legend-item input[type="checkbox"] {
-    cursor: pointer; margin: 0; width: 19px; height: 19px; flex: none; accent-color: var(--text-primary);
-  }
-  .legend-item.is-off .legend-name, .legend-item.is-off .legend-sub { color: var(--text-muted); }
-  .legend-item.is-off .swatch { opacity: 0.35; }
-  .legend-name { padding: 2px 0; }
-  .swatch { width: 12px; height: 3px; border-radius: 2px; display: inline-block; flex: none; }
-  .legend-sub { color: var(--text-muted); font-size: 11.5px; }
-  svg { display: block; width: 100%; height: auto; touch-action: pan-y; }
-  .grid-circle { fill: none; stroke: var(--grid); stroke-width: 1; }
-  .grid-ring-label { fill: var(--text-muted); font-size: 10.5px; }
-  .angle-line { stroke: var(--grid); stroke-width: 1; }
-  .angle-label { fill: var(--text-muted); font-size: 11px; text-anchor: middle; }
-  .boat-path { fill: none; stroke-width: 2; transition: opacity 0.12s; }
-  .boat-dot { stroke: none; transition: opacity 0.12s; }
-  .boat-dot-hit { fill: transparent; pointer-events: all; cursor: pointer; }
-  .wind-label { fill: var(--text-secondary); font-size: 11.5px; font-weight: 700; text-anchor: middle; }
-  .tooltip {
-    position: absolute; pointer-events: none; opacity: 0; transition: opacity 0.08s;
-    background: var(--text-primary); color: var(--surface-1);
-    font-size: 12px; padding: 6px 9px; border-radius: 6px; white-space: nowrap;
-    transform: translate(-50%, -115%); max-width: 90vw;
-  }
-  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-  table.datatable { width: 100%; border-collapse: collapse; font-size: 12.5px; margin-top: 6px; }
-  table.datatable th, table.datatable td {
-    text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--grid);
-    font-variant-numeric: tabular-nums; white-space: nowrap;
-  }
-  table.datatable th:first-child, table.datatable td:first-child { text-align: left; position: sticky; left: 0; background: var(--surface-1); }
-  table.datatable thead th { color: var(--text-secondary); font-weight: 600; font-size: 11.5px; }
-  .hidden { display: none !important; }
-  .foot { margin-top: 14px; font-size: 11px; color: var(--text-muted); line-height: 1.5; }
-  .wrap-chart { position: relative; }
+}
+:root[data-theme="dark"]{
+  color-scheme: dark;
+  --ground:#0c1014;
+  --surface:#161b21;
+  --surface-sunk:#1d242c;
+  --ink:#eef2f6;
+  --ink-2:#b3c0cc;
+  --ink-muted:#8b98a5;
+  --rule:#252e37;
+  --rule-strong:#374350;
+  --orc:#7fb2e4;
+  --orc-ink:#9cc4ec;
+  --series:#3987e5;
+  --accent:#d95926;
+  --accent-soft:rgba(217,89,38,.20);
+  --pole-fast:#3987e5;
+  --pole-slow:#e66767;
+  --warn:#fab219;
+  --warn-ink:#f0c665;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
 
-  @media (max-width: 520px) {
-    .viz-root { padding: 12px; }
-    h1 { font-size: 17px; }
-    .subtitle { font-size: 12px; margin-bottom: 14px; }
-    .card { padding: 14px; border-radius: 10px; }
-    .controls { flex-direction: column; align-items: stretch; }
-    .tws-slider-group { flex-basis: auto; min-width: 0; }
-    .view-toggle { width: 100%; }
-    .legend { gap: 0; flex-direction: column; }
-    .legend-item { width: 100%; border-bottom: 1px solid var(--grid); }
-    .legend-item:last-child { border-bottom: none; }
-  }
+*{box-sizing:border-box}
+body{
+  margin:0; background:var(--ground); color:var(--ink);
+  font-family:var(--sans); font-size:15px; line-height:1.55;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1120px;margin:0 auto;padding:28px 20px 64px}
+
+/* ---------- masthead: styled after a certificate header block ---------- */
+.masthead{
+  display:flex;flex-wrap:wrap;align-items:flex-end;gap:12px 24px;
+  padding-bottom:14px;margin-bottom:24px;border-bottom:2px solid var(--orc);
+}
+.masthead h1{
+  margin:0;font-size:clamp(22px,3.2vw,30px);font-weight:600;letter-spacing:-.015em;
+  text-wrap:balance;
+}
+.masthead .sub{margin:2px 0 0;color:var(--ink-2);font-size:14px;max-width:62ch}
+.stamp{
+  margin-left:auto;font-family:var(--mono);font-size:11px;line-height:1.5;
+  color:var(--ink-muted);text-align:right;text-transform:uppercase;letter-spacing:.06em;
+}
+.stamp b{display:block;color:var(--orc-ink);font-weight:600;letter-spacing:.08em}
+
+/* ---------- layout ---------- */
+.cols{display:grid;grid-template-columns:minmax(280px,340px) 1fr;gap:20px;align-items:start}
+@media (max-width:860px){.cols{grid-template-columns:1fr}}
+
+.panel{background:var(--surface);border:1px solid var(--rule);border-radius:6px;box-shadow:var(--shadow)}
+.panel-hd{
+  display:flex;align-items:baseline;justify-content:space-between;gap:8px;
+  padding:11px 16px;border-bottom:1px solid var(--rule);
+}
+.panel-hd h2{
+  margin:0;font-family:var(--mono);font-size:11px;font-weight:600;
+  text-transform:uppercase;letter-spacing:.12em;color:var(--orc-ink);
+}
+.panel-hd .note{font-family:var(--mono);font-size:10.5px;color:var(--ink-muted);letter-spacing:.04em}
+.panel-bd{padding:14px 16px}
+
+/* ---------- input fields: certificate data block ---------- */
+.field{display:grid;grid-template-columns:1fr auto;gap:2px 10px;padding:9px 0;border-bottom:1px solid var(--rule)}
+.field:last-of-type{border-bottom:0}
+.field label{font-size:13.5px;color:var(--ink-2);grid-column:1;align-self:center}
+.field .unit{font-family:var(--mono);font-size:11px;color:var(--ink-muted);grid-column:1;grid-row:2}
+.field input{
+  grid-column:2;grid-row:1 / span 2;width:104px;
+  font-family:var(--mono);font-variant-numeric:tabular-nums;font-size:16px;font-weight:500;
+  text-align:right;padding:7px 9px;color:var(--ink);
+  background:var(--surface-sunk);border:1px solid var(--rule-strong);border-radius:4px;
+}
+.field input:focus-visible{outline:2px solid var(--series);outline-offset:1px;border-color:var(--series)}
+.field.is-out input{border-color:var(--warn);background:color-mix(in srgb,var(--warn) 10%,var(--surface-sunk))}
+.field.muted label,.field.muted .unit{color:var(--ink-muted)}
+
+.actions{display:flex;gap:8px;margin-top:14px;flex-wrap:wrap}
+button{
+  font-family:var(--sans);font-size:13px;font-weight:500;cursor:pointer;
+  padding:7px 12px;border-radius:4px;border:1px solid var(--rule-strong);
+  background:var(--surface-sunk);color:var(--ink);
+}
+button:hover{border-color:var(--series);color:var(--series)}
+button:focus-visible{outline:2px solid var(--series);outline-offset:1px}
+
+/* ---------- readout ---------- */
+.readout{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule)}
+.readout .cell{background:var(--surface);padding:16px}
+.readout .k{
+  font-family:var(--mono);font-size:10.5px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.1em;color:var(--ink-muted);
+}
+.readout .v{font-family:var(--mono);font-size:clamp(30px,5vw,42px);font-weight:600;line-height:1.05;margin-top:6px;letter-spacing:-.02em}
+.readout .v small{font-size:15px;font-weight:400;color:var(--ink-muted);margin-left:6px;letter-spacing:0}
+.readout .r{font-family:var(--mono);font-size:12px;color:var(--ink-2);margin-top:7px}
+
+.flags{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 14px}
+.flag{
+  display:inline-flex;align-items:center;gap:6px;font-size:12px;
+  padding:4px 9px;border-radius:3px;border:1px solid var(--warn);
+  color:var(--warn-ink);background:color-mix(in srgb,var(--warn) 14%,transparent);
+}
+.flag svg{flex:none}
+
+/* ---------- charts ---------- */
+figure{margin:0}
+figcaption{font-size:12.5px;color:var(--ink-muted);padding:0 16px 13px;max-width:76ch}
+.chart{width:100%;display:block;overflow:visible}
+.legend{display:flex;flex-wrap:wrap;gap:14px;padding:0 16px 10px;font-size:12px;color:var(--ink-2)}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+.swatch{width:11px;height:11px;border-radius:50%;flex:none}
+.swatch.bar{border-radius:2px;width:14px;height:9px}
+.tick{font-family:var(--mono);font-size:10px;fill:var(--ink-muted);font-variant-numeric:tabular-nums}
+.axis-line{stroke:var(--rule-strong);stroke-width:1}
+.grid{stroke:var(--rule);stroke-width:1}
+.dot{fill:var(--series);stroke:var(--surface);stroke-width:2;cursor:pointer}
+.dot:hover{stroke:var(--ink)}
+.blabel{font-family:var(--mono);font-size:10px;fill:var(--ink-muted)}
+.bval{font-family:var(--mono);font-size:11px;font-weight:500;fill:var(--ink-2);font-variant-numeric:tabular-nums}
+.tipbox{position:absolute;pointer-events:none;opacity:0;transition:opacity .12s;
+  background:var(--surface);border:1px solid var(--rule-strong);border-radius:4px;
+  box-shadow:var(--shadow);padding:7px 10px;font-size:12px;white-space:nowrap;z-index:5}
+.tipbox b{display:block;font-weight:600;margin-bottom:2px}
+.tipbox span{font-family:var(--mono);color:var(--ink-2)}
+.chartwrap{position:relative;padding:4px 16px 12px}
+
+/* ---------- tables ---------- */
+.tablewrap{overflow-x:auto;padding:0 16px 16px}
+table{border-collapse:collapse;width:100%;font-size:13px;min-width:600px}
+th,td{padding:6px 10px;text-align:right;border-bottom:1px solid var(--rule);white-space:nowrap}
+th{
+  font-family:var(--mono);font-size:10px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.08em;color:var(--ink-muted);border-bottom:1px solid var(--rule-strong);
+}
+td:first-child,th:first-child{text-align:left}
+td.num{font-family:var(--mono);font-variant-numeric:tabular-nums}
+tbody tr:hover{background:var(--surface-sunk)}
+.ref{font-family:var(--mono);font-size:11px;color:var(--ink-muted)}
+
+/* ---------- prose ---------- */
+.notes{margin-top:20px}
+.notes h3{
+  font-family:var(--mono);font-size:11px;font-weight:600;text-transform:uppercase;
+  letter-spacing:.12em;color:var(--orc-ink);margin:0 0 8px;
+}
+.notes p{margin:0 0 10px;max-width:68ch;color:var(--ink-2);font-size:14px}
+.notes p:last-child{margin-bottom:0}
+.notes b{color:var(--ink);font-weight:600}
+.eq{
+  font-family:var(--mono);font-size:12.5px;line-height:1.9;color:var(--ink-2);
+  background:var(--surface-sunk);border-left:2px solid var(--orc);
+  padding:12px 14px;border-radius:0 4px 4px 0;overflow-x:auto;white-space:pre;
+}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px}
+a{color:var(--series)}
+@media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
-</head>
-<body>
-<div class="viz-root">
-  <h1>Melges 32 (HYDRA YOUTH, WILMA) vs BAMAK / VICKY — Boat Speed Polar Comparison</h1>
-  <p class="subtitle">Rated boat speed (BSP, knots, axis capped at 12kt) by true wind angle — wind speed 4–18kt — ORC International Certificates, 2026 season. All four boats are shown by default — uncheck a boat to hide it.</p>
-  <div class="card">
-    <div class="controls">
-      <div class="tws-slider-group">
-        <div class="tws-slider-header">
-          <span class="tws-slider-label">True Wind Speed</span>
-          <span class="tws-slider-value" id="twsValue">10.0 kt</span>
+
+<div class="wrap">
+  <header class="masthead">
+    <div>
+      <h1>Melges&nbsp;32 APH Estimator</h1>
+      <p class="sub">Estimates the ORC All Purpose Handicap from a boat's certificate data. Fitted to 22 live 2026 certificates on the stock one-design hull, with four slopes measured directly from pairs of real certificates.</p>
+    </div>
+    <div class="stamp">
+      <b>ORC · One Design</b>
+      data.orc.org<br>re-pulled 2026-10-18<br>VPP ver 2026 1.00
+    </div>
+  </header>
+
+  <div class="cols">
+    <!-- ------------------------------ inputs ------------------------------ -->
+    <section class="panel" aria-labelledby="h-input">
+      <div class="panel-hd"><h2 id="h-input">Certificate data</h2><span class="note" id="loaded">F1 filed certificate</span></div>
+      <div class="panel-bd">
+        <div class="field" id="f-dspl">
+          <label for="i-dspl">Displacement</label><span class="unit">kg · 1659–1961</span>
+          <input id="i-dspl" type="number" step="1" value="1961" inputmode="decimal">
         </div>
-        <input type="range" class="tws-slider" id="twsSlider" min="4" max="18" step="0.1" value="10" aria-label="True wind speed, 4 to 18 knots">
-        <div class="tws-ticks" id="twsTicks"></div>
+        <div class="field" id="f-crew">
+          <label for="i-crew">Crew weight, max</label><span class="unit">kg · 544–770</span>
+          <input id="i-crew" type="number" step="1" value="620" inputmode="decimal">
+        </div>
+        <div class="field" id="f-main">
+          <label for="i-main">Mainsail, rated</label><span class="unit">m² · 40.21–42.62 · rated, not measured</span>
+          <input id="i-main" type="number" step="0.01" value="41.87" inputmode="decimal">
+        </div>
+        <div class="field" id="f-jib">
+          <label for="i-jib">Headsail luffed, rated</label><span class="unit">m² · 21.20–23.58 · rated, not measured</span>
+          <input id="i-jib" type="number" step="0.01" value="21.98" inputmode="decimal">
+        </div>
+        <div class="field" id="f-spin">
+          <label for="i-spin">Spinnaker, largest</label><span class="unit">m² · 104.5–126.1 · SHW/SFL ≥ 85%</span>
+          <input id="i-spin" type="number" step="0.01" value="121.03" inputmode="decimal">
+        </div>
+        <div class="field" id="f-rm">
+          <label for="i-rm">RM rated</label><span class="unit">kg·m · 47.0–61.1</span>
+          <input id="i-rm" type="number" step="0.1" value="52.6" inputmode="decimal">
+        </div>
+        <div class="field" id="f-hsf">
+          <label for="i-hsf">Headsail flying</label><span class="unit">m² · 0 or 71.9 seen · code-zero type</span>
+          <input id="i-hsf" type="number" step="0.1" value="0" inputmode="decimal">
+        </div>
+        <div class="field" id="f-rs">
+          <label for="i-rs">RS Assessment</label><span class="unit">% · −0.280 to 0.000 · from the certificate</span>
+          <input id="i-rs" type="number" step="0.001" value="-0.229" inputmode="decimal">
+        </div>
+        <div class="actions">
+          <button type="button" id="b-f1">F1 filed certificate</button>
+          <button type="button" id="b-reset">Class-typical boat</button>
+          <button type="button" id="b-load">Load a fleet boat…</button>
+        </div>
       </div>
-      <button class="view-toggle" id="viewToggle" aria-pressed="false">Show table</button>
+    </section>
+
+    <!-- ------------------------------ results ------------------------------ -->
+    <div style="display:grid;gap:20px">
+      <section class="panel" aria-labelledby="h-out">
+        <div class="panel-hd"><h2 id="h-out">Estimated handicap</h2><span class="note" id="out-rank">—</span></div>
+        <div class="readout">
+          <div class="cell">
+            <div class="k">APH ToD</div>
+            <div class="v"><span id="o-tod">—</span><small>s/NM</small></div>
+            <div class="r" id="o-band">—</div>
+          </div>
+          <div class="cell">
+            <div class="k">APH ToT</div>
+            <div class="v"><span id="o-tot">—</span></div>
+            <div class="r">= 600 / ToD · exact ORC identity</div>
+          </div>
+        </div>
+        <div class="flags" id="o-flags"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="h-fleet">
+        <div class="panel-hd"><h2 id="h-fleet">Where it sits in the fleet</h2><span class="note">s/NM · lower = rated faster</span></div>
+        <div class="legend">
+          <span><i class="swatch" style="background:var(--series)"></i>fleet certificate</span>
+          <span><i class="swatch" style="background:var(--accent)"></i>your estimate</span>
+          <span><i class="swatch bar" style="background:var(--accent-soft);border:1px solid var(--accent)"></i>±1.4 s/NM error band</span>
+        </div>
+        <div class="chartwrap">
+          <svg class="chart" id="c-fleet" viewBox="0 0 720 250" role="img" aria-labelledby="cap-fleet"></svg>
+          <div class="tipbox" id="tip"></div>
+        </div>
+        <figcaption id="cap-fleet">Each dot is one 2026 certificate on the stock Melges 32 hull, including F1's filed certificate and its two test certificates. Hover a dot for the boat. The band is the model's error on a boat it has never seen.</figcaption>
+      </section>
+
+      <section class="panel" aria-labelledby="h-sens">
+        <div class="panel-hd"><h2 id="h-sens">What each change buys</h2><span class="note">change in ToD</span></div>
+        <div class="legend">
+          <span><i class="swatch bar" style="background:var(--pole-fast)"></i>rated faster (lower ToD)</span>
+          <span><i class="swatch bar" style="background:var(--pole-slow)"></i>rated slower (higher ToD)</span>
+        </div>
+        <div class="chartwrap">
+          <svg class="chart" id="c-sens" viewBox="0 0 720 300" role="img" aria-labelledby="cap-sens"></svg>
+        </div>
+        <figcaption id="cap-sens">Effect on the current estimate of changing one input at a time. Mainsail, headsail, spinnaker and flying headsail are slopes measured from real certificate pairs; displacement, crew and RM come from the fleet regression.</figcaption>
+      </section>
     </div>
-    <div class="legend" id="legend"></div>
-    <div class="wrap-chart">
-      <svg id="chart" viewBox="0 0 720 560"></svg>
-      <div class="tooltip" id="tooltip"></div>
+  </div>
+
+  <!-- ------------------------------ fleet table ------------------------------ -->
+  <section class="panel notes" aria-labelledby="h-tbl">
+    <div class="panel-hd"><h2 id="h-tbl">Reference fleet — 22 certificates on the stock hull</h2><span class="note">source data.orc.org, re-pulled 2026-10-18 · click a row to load it</span></div>
+    <div class="tablewrap">
+      <table>
+        <thead><tr>
+          <th>Boat</th><th>Cert</th><th>APH ToD</th><th>Displ</th><th>Crew</th>
+          <th>Main</th><th>Jib</th><th>Spin</th><th>Fly HS</th><th>RM</th><th>RS %</th><th>Model</th><th>Error</th>
+        </tr></thead>
+        <tbody id="tbl-body"></tbody>
+      </table>
     </div>
-    <div id="tableWrap" class="hidden"></div>
-    <div class="foot">
-      Beat and Run points use each boat's own optimal VMG angle at that wind speed (converted from certificate VMG to boat speed). 52°–150° points are boat speed as published directly on the certificate. Tick marks below the slider (4, 6, 8, 10, 12, 14, 16 kt) are the certificate's actual measured wind speeds; values in between are linearly interpolated. The wind-speed slider runs 4–18kt; the boat-speed rings are capped at 12kt. Melges 32 planes well past that downwind in a breeze (up to ~17.5kt) — those points run off the edge of the chart rather than being cut from the data, so check the table view for their full values at higher wind speeds. All four boats are checked by default; uncheck a boat to hide it.<br>
-      Source: ORC International Certificates 2026, data.orc.org.
-    </div>
+  </section>
+
+  <!-- ------------------------------ method ------------------------------ -->
+  <div class="notes grid2">
+    <section class="panel">
+      <div class="panel-hd"><h2>The model</h2></div>
+      <div class="panel-bd">
+        <div class="eq">base = 524.392
+     + 0.04665 × displacement      (kg)
+     − 0.04871 × crew weight       (kg)
+     − 0.8683  × RM rated          (kg·m)
+     − 0.6038  × mainsail rated    (m²)   pair
+     − 0.1148  × headsail rated    (m²)   pair
+     − 0.1139  × spinnaker         (m²)   pair
+     − 0.0361  × headsail flying   (m²)   pair
+
+APH ToD = base × (1 + RS Assessment / 100)</div>
+        <p style="margin-top:12px">Terms marked <b>pair</b> are not fitted by regression. Each is read directly from two real certificates that differ only in that input (see "Slopes measured from certificate pairs"). The first three terms are an ordinary regression across all 22 certificates, after removing the pair terms and the RS Assessment.</p>
+        <p><b>ToT is exact.</b> APH ToT = 600 / ToD held on every certificate checked, to rounding.</p>
+        <p><b>APH is a fixed average of the certificate's own table.</b> On all 28 certificates pulled, APH ToD equals a fixed wind-weighted average of the "All purpose" time-allowance row, to within 0.07 s/NM. The weights peak at 12 kt (about 0.31) and are near zero at 4 and 24 kt.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-hd"><h2>What the certificate tables revealed</h2><span class="note">new, 2026-10-18</span></div>
+      <div class="panel-bd">
+        <p>The earlier version claimed about 2 s/NM of scatter that no input could explain: Pomorski ST, ADRENALINE and BANSHEE had identical displacement, crew, sails and RM but rated 480.4, 482.5 and 480.6. Diffing their full certificates and time-allowance tables found the inputs that explain the gap:</p>
+        <p><b>RS Assessment</b> is printed on every certificate (−0.127% to −0.280% in this fleet, 0.000% on one Club certificate). It scales every time allowance by the same percentage. That's worth up to about 0.7 s/NM between boats. ORC documentation defining it wasn't found, so this is what the tables show, not what the rule says.</p>
+        <p><b>A flying headsail</b> (Pomorski ST, 71.90 m²) cuts light-air reaching allowances sharply: 680.5 → 593.7 s/NM at 90° in 4 kt. Net effect is about −2.6 s/NM on APH.</p>
+        <p><b>Blank mast weight and mast CG</b> (BANSHEE, Club certificate) changed only the upwind rows, increasingly with wind speed: −13.4 s/NM on the beat at 24 kt. That pattern means the VPP rated it stiffer. Certificates with these fields blank (BANSHEE, PLAYLIST) are left out of the fit.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-hd"><h2>Slopes measured from certificate pairs</h2></div>
+      <div class="panel-bd">
+        <p><b>Mainsail, −0.604 s/NM per m².</b> F1's filed certificate vs. test certificate 1: P shortened 13.420 → 13.320 m, rated main 41.87 → 41.04 m², everything else identical. APH 497.3 → 497.8.</p>
+        <p><b>Spinnaker, −0.114 s/NM per m².</b> F1 test 1 vs. test 2: spinnaker 121.03 → 120.15 m², APH 497.8 → 497.9. The shape ratio also changed (99% → 110%), so this is the effect of that sail swap, not a pure area slope.</p>
+        <p><b>Headsail, −0.115 s/NM per m².</b> ADRENALINE vs. Spitfire: same displacement, crew and RM; headsail 23.58 → 22.23 m². The mainsail and spinnaker differences in that pair are removed using the two slopes above. Mischief, not used for any slope, checks it: actual +1.70 s/NM vs. ADRENALINE, model +1.45.</p>
+        <p><b>Flying headsail, −0.036 s/NM per m².</b> Pomorski ST vs. ADRENALINE: identical except the 71.90 m² flying headsail. Only one size has been seen, so treat it as on/off.</p>
+        <p>Each slope rests on a single pair. A one-change-at-a-time test certificate for each input would confirm them.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-hd"><h2>How much to trust it</h2></div>
+      <div class="panel-bd">
+        <p><b>±1.4 s/NM on a boat the model has never seen.</b> This is leave-one-out error over the 16 boats that were not used to measure any slope. 9 of the 16 land within 1 s/NM. The worst is WICKED at −3.1 (770 kg crew), then GEMINI II at −2.4 (crew is ORC's default weight, not declared) and Crazy Diamond at +2.2 (RM estimated, not measured).</p>
+        <p><b>F1, predicted without F1 in the regression:</b> 497.15 vs. the filed 497.3, 497.65 vs. 497.8 and 497.75 vs. 497.9, all within 0.15 s/NM. With no F1 data used anywhere, not even for the two slopes, the error is 0.3–0.8 s/NM. F1 is the heaviest boat in the fleet (1,961 kg), so this is extrapolation that happened to hold.</p>
+        <p><b>Not modelled:</b> code zeros and reaching kites (SHW/SFL &lt; 85%), mast weight and CG, carbon rudder, non-spinnaker and double-handed certificates. On the reaching legs some of these matter, so their certificates carry more error.</p>
+        <p><b>This is not the ORC VPP.</b> It fits the boat-to-boat differences within one class that shares one hull offset file (MELGES32.OD.OFF), which is what makes it possible and also what limits it to this class.</p>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-hd"><h2>Which certificates are included</h2><span class="note">re-pulled live, 2026-10-18</span></div>
+      <div class="panel-bd">
+        <p>All 39 active Melges 32 certificates were listed. 20 of them are used, plus F1's two test certificates:</p>
+        <p><b>Left out:</b> four boats with their own hull offset file (FEARLESS, FLAT STANLEY, Hotshot, Segelmanufactur). Seven exact copies of the ORC one-design default certificate (offset file "melg32.od"), keeping ADRENALINE as the one representative. BANSHEE and PLAYLIST, whose mast weight and CG are blank. And the non-spinnaker and double-handed certificates (Crazy Diamond NS, Maxstar NS, Pomorski ST DH), which use different crew or sail configurations.</p>
+        <p><b>Added:</b> F1's two test certificates (not paid, so not valid for racing, but run through the same VPP), and MELTDOWN, which the previous version had missed.</p>
+      </div>
+    </section>
   </div>
 </div>
 
 <script>
-const DATA = {"HYDRA_YOUTH":{"name":"HYDRA YOUTH","sailno":"ESP-20511","class":"Melges 32","color":"#2a78d6","series":{"4":[{"a":44.9,"s":4.21},{"a":52,"s":4.65},{"a":60,"s":4.99},{"a":75,"s":5.27},{"a":90,"s":5.36},{"a":110,"s":5.19},{"a":120,"s":4.88},{"a":135,"s":4.33},{"a":150,"s":3.6},{"a":139.9,"s":4.08}],"6":[{"a":42.1,"s":5.65},{"a":52,"s":6.3},{"a":60,"s":6.59},{"a":75,"s":6.78},{"a":90,"s":6.94},{"a":110,"s":6.88},{"a":120,"s":6.7},{"a":135,"s":6.14},{"a":150,"s":5.17},{"a":142.1,"s":5.68}],"8":[{"a":38.9,"s":6.27},{"a":52,"s":7.01},{"a":60,"s":7.23},{"a":75,"s":7.45},{"a":90,"s":7.49},{"a":110,"s":7.73},{"a":120,"s":7.7},{"a":135,"s":7.31},{"a":150,"s":6.41},{"a":147.2,"s":6.61}],"10":[{"a":37.7,"s":6.48},{"a":52,"s":7.25},{"a":60,"s":7.51},{"a":75,"s":7.91},{"a":90,"s":8.08},{"a":110,"s":8.41},{"a":120,"s":8.46},{"a":135,"s":8.25},{"a":150,"s":7.29},{"a":152.9,"s":7.12}],"12":[{"a":37.6,"s":6.63},{"a":52,"s":7.4},{"a":60,"s":7.7},{"a":75,"s":8.18},{"a":90,"s":8.59},{"a":110,"s":8.91},{"a":120,"s":9.25},{"a":135,"s":9.34},{"a":150,"s":8.16},{"a":150.5,"s":8.12}],"14":[{"a":37.4,"s":6.7},{"a":52,"s":7.51},{"a":60,"s":7.85},{"a":75,"s":8.41},{"a":90,"s":8.96},{"a":110,"s":9.37},{"a":120,"s":9.91},{"a":135,"s":10.44},{"a":150,"s":9.19},{"a":144.9,"s":9.73}],"16":[{"a":37.4,"s":6.77},{"a":52,"s":7.6},{"a":60,"s":7.96},{"a":75,"s":8.6},{"a":90,"s":9.3},{"a":110,"s":9.87},{"a":120,"s":10.54},{"a":135,"s":11.36},{"a":150,"s":10.48},{"a":144.8,"s":11.1}],"20":[{"a":38.2,"s":6.81},{"a":52,"s":7.67},{"a":60,"s":8.09},{"a":75,"s":8.86},{"a":90,"s":9.8},{"a":110,"s":11.07},{"a":120,"s":11.53},{"a":135,"s":13.31},{"a":150,"s":13.85},{"a":148.3,"s":14.1}],"24":[{"a":40.1,"s":6.79},{"a":52,"s":7.58},{"a":60,"s":8.03},{"a":75,"s":8.92},{"a":90,"s":10.15},{"a":110,"s":11.87},{"a":120,"s":12.65},{"a":135,"s":15.25},{"a":150,"s":17.19},{"a":152.5,"s":17.1}]}},"WILMA":{"name":"WILMA","sailno":"ESP-32227","class":"Melges 32","color":"#eb6834","series":{"4":[{"a":44.9,"s":4.19},{"a":52,"s":4.63},{"a":60,"s":4.98},{"a":75,"s":5.25},{"a":90,"s":5.13},{"a":110,"s":5.01},{"a":120,"s":4.84},{"a":135,"s":4.34},{"a":150,"s":3.61},{"a":139.9,"s":4.09}],"6":[{"a":42.3,"s":5.66},{"a":52,"s":6.31},{"a":60,"s":6.6},{"a":75,"s":6.79},{"a":90,"s":6.69},{"a":110,"s":6.84},{"a":120,"s":6.74},{"a":135,"s":6.16},{"a":150,"s":5.18},{"a":142.0,"s":5.7}],"8":[{"a":38.8,"s":6.33},{"a":52,"s":7.06},{"a":60,"s":7.27},{"a":75,"s":7.47},{"a":90,"s":7.45},{"a":110,"s":7.68},{"a":120,"s":7.76},{"a":135,"s":7.35},{"a":150,"s":6.42},{"a":147.1,"s":6.62}],"10":[{"a":37.6,"s":6.56},{"a":52,"s":7.32},{"a":60,"s":7.59},{"a":75,"s":7.99},{"a":90,"s":8.11},{"a":110,"s":8.24},{"a":120,"s":8.54},{"a":135,"s":8.33},{"a":150,"s":7.31},{"a":152.9,"s":7.13}],"12":[{"a":37.1,"s":6.68},{"a":52,"s":7.48},{"a":60,"s":7.8},{"a":75,"s":8.29},{"a":90,"s":8.7},{"a":110,"s":8.77},{"a":120,"s":9.19},{"a":135,"s":9.46},{"a":150,"s":8.22},{"a":150.2,"s":8.2}],"14":[{"a":37.0,"s":6.77},{"a":52,"s":7.61},{"a":60,"s":7.96},{"a":75,"s":8.54},{"a":90,"s":9.11},{"a":110,"s":9.3},{"a":120,"s":9.85},{"a":135,"s":10.59},{"a":150,"s":9.3},{"a":144.2,"s":9.93}],"16":[{"a":36.9,"s":6.83},{"a":52,"s":7.71},{"a":60,"s":8.09},{"a":75,"s":8.75},{"a":90,"s":9.48},{"a":110,"s":9.99},{"a":120,"s":10.5},{"a":135,"s":11.53},{"a":150,"s":10.64},{"a":144.2,"s":11.36}],"20":[{"a":37.5,"s":6.88},{"a":52,"s":7.81},{"a":60,"s":8.24},{"a":75,"s":9.05},{"a":90,"s":10.04},{"a":110,"s":11.33},{"a":120,"s":11.74},{"a":135,"s":13.33},{"a":150,"s":14.14},{"a":148.4,"s":14.37}],"24":[{"a":39.3,"s":6.86},{"a":52,"s":7.72},{"a":60,"s":8.19},{"a":75,"s":9.14},{"a":90,"s":10.43},{"a":110,"s":12.21},{"a":120,"s":12.97},{"a":135,"s":15.31},{"a":150,"s":17.47},{"a":152.6,"s":17.38}]}},"BAMAK":{"name":"BAMAK","sailno":"ESP-10206","class":"Sinergia 40","color":"#1baf7a","series":{"4":[{"a":46.1,"s":2.6},{"a":52,"s":4.08},{"a":60,"s":4.39},{"a":75,"s":4.61},{"a":90,"s":4.48},{"a":110,"s":4.32},{"a":120,"s":4.17},{"a":135,"s":3.63},{"a":150,"s":3.01},{"a":138.8,"s":2.61}],"6":[{"a":42.9,"s":3.67},{"a":52,"s":5.58},{"a":60,"s":5.88},{"a":75,"s":6.09},{"a":90,"s":5.97},{"a":110,"s":6.0},{"a":120,"s":5.83},{"a":135,"s":5.21},{"a":150,"s":4.39},{"a":144.4,"s":3.8}],"8":[{"a":41.2,"s":4.43},{"a":52,"s":6.57},{"a":60,"s":6.83},{"a":75,"s":7.02},{"a":90,"s":7.02},{"a":110,"s":7.17},{"a":120,"s":7.01},{"a":135,"s":6.44},{"a":150,"s":5.59},{"a":148.7,"s":4.84}],"10":[{"a":40.1,"s":4.97},{"a":52,"s":7.21},{"a":60,"s":7.42},{"a":75,"s":7.57},{"a":90,"s":7.6},{"a":110,"s":7.82},{"a":120,"s":7.72},{"a":135,"s":7.33},{"a":150,"s":6.61},{"a":152.5,"s":5.74}],"12":[{"a":39.0,"s":5.24},{"a":52,"s":7.49},{"a":60,"s":7.71},{"a":75,"s":7.91},{"a":90,"s":7.94},{"a":110,"s":8.25},{"a":120,"s":8.22},{"a":135,"s":7.9},{"a":150,"s":7.39},{"a":157.9,"s":6.51}],"14":[{"a":38.6,"s":5.38},{"a":52,"s":7.62},{"a":60,"s":7.84},{"a":75,"s":8.13},{"a":90,"s":8.26},{"a":110,"s":8.54},{"a":120,"s":8.68},{"a":135,"s":8.41},{"a":150,"s":7.92},{"a":165.1,"s":7.15}],"16":[{"a":38.2,"s":5.46},{"a":52,"s":7.7},{"a":60,"s":7.93},{"a":75,"s":8.27},{"a":90,"s":8.52},{"a":110,"s":8.76},{"a":120,"s":9.09},{"a":135,"s":8.91},{"a":150,"s":8.39},{"a":170.5,"s":7.65}],"20":[{"a":38.2,"s":5.55},{"a":52,"s":7.8},{"a":60,"s":8.04},{"a":75,"s":8.45},{"a":90,"s":8.86},{"a":110,"s":9.13},{"a":120,"s":9.66},{"a":135,"s":10.1},{"a":150,"s":9.41},{"a":170.9,"s":8.52}],"24":[{"a":38.9,"s":5.52},{"a":52,"s":7.82},{"a":60,"s":8.08},{"a":75,"s":8.53},{"a":90,"s":9.07},{"a":110,"s":9.54},{"a":120,"s":10.16},{"a":135,"s":11.7},{"a":150,"s":10.81},{"a":163.3,"s":9.49}]}},"VICKY":{"name":"VICKY","sailno":"ESP 8377","class":"VROLIJK 37","color":"#eda100","series":{"4":[{"a":45.6,"s":3.63},{"a":52,"s":3.97},{"a":60,"s":4.25},{"a":75,"s":4.46},{"a":90,"s":4.33},{"a":110,"s":4.18},{"a":120,"s":4.03},{"a":135,"s":3.5},{"a":150,"s":2.9},{"a":139.5,"s":3.3}],"6":[{"a":42.5,"s":4.87},{"a":52,"s":5.43},{"a":60,"s":5.7},{"a":75,"s":5.88},{"a":90,"s":5.76},{"a":110,"s":5.8},{"a":120,"s":5.62},{"a":135,"s":5.02},{"a":150,"s":4.22},{"a":144.7,"s":4.47}],"8":[{"a":40.8,"s":5.77},{"a":52,"s":6.44},{"a":60,"s":6.67},{"a":75,"s":6.82},{"a":90,"s":6.85},{"a":110,"s":6.94},{"a":120,"s":6.77},{"a":135,"s":6.22},{"a":150,"s":5.38},{"a":149.2,"s":5.43}],"10":[{"a":39.4,"s":6.33},{"a":52,"s":7.02},{"a":60,"s":7.2},{"a":75,"s":7.33},{"a":90,"s":7.38},{"a":110,"s":7.55},{"a":120,"s":7.45},{"a":135,"s":7.08},{"a":150,"s":6.39},{"a":152.2,"s":6.27}],"12":[{"a":38.4,"s":6.52},{"a":52,"s":7.25},{"a":60,"s":7.45},{"a":75,"s":7.64},{"a":90,"s":7.68},{"a":110,"s":7.95},{"a":120,"s":7.91},{"a":135,"s":7.61},{"a":150,"s":7.15},{"a":158.5,"s":6.79}],"14":[{"a":38.0,"s":6.61},{"a":52,"s":7.35},{"a":60,"s":7.56},{"a":75,"s":7.84},{"a":90,"s":7.97},{"a":110,"s":8.25},{"a":120,"s":8.34},{"a":135,"s":8.08},{"a":150,"s":7.64},{"a":166.2,"s":7.15}],"16":[{"a":38.2,"s":6.71},{"a":52,"s":7.42},{"a":60,"s":7.63},{"a":75,"s":7.96},{"a":90,"s":8.21},{"a":110,"s":8.46},{"a":120,"s":8.75},{"a":135,"s":8.56},{"a":150,"s":8.07},{"a":172.7,"s":7.47}],"20":[{"a":38.4,"s":6.79},{"a":52,"s":7.49},{"a":60,"s":7.72},{"a":75,"s":8.12},{"a":90,"s":8.53},{"a":110,"s":8.84},{"a":120,"s":9.33},{"a":135,"s":9.7},{"a":150,"s":9.03},{"a":175.4,"s":8.24}],"24":[{"a":39.8,"s":6.78},{"a":52,"s":7.47},{"a":60,"s":7.73},{"a":75,"s":8.18},{"a":90,"s":8.71},{"a":110,"s":9.21},{"a":120,"s":9.84},{"a":135,"s":11.29},{"a":150,"s":10.35},{"a":165.4,"s":9.43}]}}};
-const BOATS = Object.keys(DATA);
-const TWS_LIST = [4,6,8,10,12,14,16,20,24]; // all wind speeds measured on the certificates (used for interpolation)
-const SLIDER_MAX_TWS = 18; // wind-speed slider is capped here, independent of the boat-speed axis below
-const MAXR = 12; // outer ring: boat speed (kt) — fixed at 12kt for all boats/combinations
-const RINGS = [2,4,6,8,10,12];
+"use strict";
 
-let currentTWS = 10;
-let tableMode = false;
-let checkedBoats = new Set(BOATS); // all four boats shown on load; uncheck to hide one
+// ---- reference fleet: 22 live 2026 certificates on the stock hull (MELGES32.OD.OFF), re-pulled from
+// data.orc.org on 2026-10-18, plus F1's two ORC test certificates. See the panels for exclusions.
+// name, ORC cert id, APH ToD, displacement, crew, main, jib, spinnaker, RM, headsail flying, RS %, cert type
+const FLEET = [
+  ["ZILLA","262494",489.2,1710,629,41.96,22.58,122.54,48.0,0,-0.127,"Club"],
+  ["ADRENALINE","258134",482.5,1714,629,42.62,23.58,125.49,54.6,0,-0.229,"OD default"],
+  ["Crazy Diamond","260962",481.1,1756,637,41.73,22.24,122.32,61.1,0,-0.127,"Club"],
+  ["F1","262684",497.3,1961,620,41.87,21.98,121.03,52.6,0,-0.229,"International"],
+  ["FREMITO D'ARJA","254366",490.4,1824,620,41.45,22.18,124.04,52.0,0,-0.280,"International"],
+  ["GEMINI II","255936",489.4,1760,544,41.59,22.33,124.45,53.3,0,-0.127,"International"],
+  ["GroundHog Day","263580",480.4,1761,770,42.00,22.03,126.12,52.3,0,-0.178,"International"],
+  ["GUILLOTINE","250940",492.1,1780,559,41.46,22.69,125.12,51.6,0,-0.127,"International"],
+  ["HAPPY THOUGHTS","249995",492.6,1809,629,42.02,22.46,123.07,50.7,0,-0.127,"International"],
+  ["HEDGEHOG","262493",481.5,1710,629,41.77,21.83,125.62,55.7,0,-0.127,"Club"],
+  ["HYDRA YOUTH","261614",491.7,1810,629,41.59,22.52,115.05,50.5,0,-0.280,"International"],
+  ["MELTDOWN","250322",492.2,1741,648,41.79,22.57,120.91,47.0,0,-0.127,"International"],
+  ["Mischief","261385",484.2,1714,629,42.03,21.20,120.43,54.6,0,-0.178,"Club"],
+  ["NUCKELAVEE","255647",493.9,1833,635,40.21,22.52,124.55,51.7,0,-0.127,"International"],
+  ["PAINKILLER","261390",489.7,1777,629,41.46,21.69,123.66,51.6,0,-0.229,"International"],
+  ["Spitfire","248946",483.7,1714,629,41.74,22.23,123.13,54.6,0,-0.178,"Club"],
+  ["Pomorski ST","257045",480.4,1714,629,42.62,23.58,125.49,54.6,71.9,-0.127,"International"],
+  ["WICKED","263168",482.1,1806,770,41.47,21.39,125.28,51.3,0,-0.178,"International"],
+  ["WILMA","263952",492.8,1775,629,41.55,22.19,104.48,49.8,0,-0.280,"International"],
+  ["WINGS RACING","245761",480.0,1659,680,42.23,22.91,125.04,53.1,0,-0.127,"International"],
+  ["F1 test 1 (spin 121.03)","TEST-1",497.8,1961,620,41.04,21.98,121.03,52.6,0,-0.229,"Test"],
+  ["F1 test 2 (spin 120.15)","TEST-2",497.9,1961,620,41.04,21.98,120.15,52.6,0,-0.229,"Test"]
+];
 
-// Chart geometry is recomputed responsively to fill the container width — see
-// updateChartDimensions(). These are just the initial/fallback values.
-let cx = 350, cy = 280, plotR = 230;
+// regression terms (fitted across all 22 after removing the pair terms and RS Assessment)
+const C = [524.391633, 0.04665, -0.048711, -0.868337];
+// slopes read directly from real certificate pairs, not regression-fitted
+const PIN = {main:-0.603792, jib:-0.11476, spin:-0.113897, hsf:-0.036114};
+const ERR = 1.4;   // leave-one-out RMSE on the 16 boats not used for any pinned slope, s/NM
+const F1  = {dspl:1961, crew:620, main:41.87, jib:21.98, spin:121.03, rm:52.6, hsf:0, rs:-0.229};
+const TYPICAL = {dspl:1770, crew:629, main:41.75, jib:22.30, spin:124.00, rm:52.3, hsf:0, rs:-0.127};
+const RANGE = {dspl:[1659,1961], crew:[544,770], main:[40.21,42.62], jib:[21.20,23.58], spin:[104.48,126.12], rm:[47.0,61.1], hsf:[0,71.9], rs:[-0.28,0]};
+const LABEL = {dspl:"Displacement", crew:"Crew weight", main:"Mainsail area", jib:"Headsail area", spin:"Spinnaker area", rm:"Righting moment", hsf:"Flying headsail", rs:"RS Assessment"};
+const UNIT  = {dspl:"kg", crew:"kg", main:"m²", jib:"m²", spin:"m²", rm:"kg·m", hsf:"m²", rs:"%"};
 
-function polarToXY(angleDeg, speed) {
-  const r = Math.min(speed / MAXR, 1.08) * plotR;
-  const rad = angleDeg * Math.PI / 180;
-  return [cx + r * Math.sin(rad), cy - r * Math.cos(rad)];
+const $ = id => document.getElementById(id);
+const IN = {}; for (const k in RANGE) IN[k] = $("i-" + k);
+
+function tod(b){
+  const base = C[0] + C[1]*b.dspl + C[2]*b.crew + C[3]*b.rm
+             + PIN.main*b.main + PIN.jib*b.jib + PIN.spin*b.spin + PIN.hsf*b.hsf;
+  return base * (1 + b.rs/100);
 }
+function readInputs(){
+  const b = {};
+  for (const k in IN){ const v = parseFloat(IN[k].value); b[k] = Number.isFinite(v) ? v : TYPICAL[k]; }
+  return b;
+}
+const fleetBoat = b => ({dspl:b[3], crew:b[4], main:b[5], jib:b[6], spin:b[7], rm:b[8], hsf:b[9], rs:b[10]});
+function setInputs(o, label){ for (const k in IN) IN[k].value = o[k]; $("loaded").textContent = label; render(); }
 
-// Linearly interpolate a boat's 10-point series (beat VMG, 52°..150°, run VMG)
-// between the two bracketing certificate wind speeds. The 8 fixed-angle points
-// (52-150) keep a constant angle at every TWS, so only their speed changes;
-// the beat/run VMG points shift in both angle and speed, which is interpolated too.
-function getInterpolatedSeries(boatKey, tws) {
-  const d = DATA[boatKey];
-  const keys = TWS_LIST;
-  if (tws <= keys[0]) return d.series[String(keys[0])];
-  if (tws >= keys[keys.length - 1]) return d.series[String(keys[keys.length - 1])];
-  let lo = keys[0], hi = keys[keys.length - 1];
-  for (let i = 0; i < keys.length - 1; i++) {
-    if (tws >= keys[i] && tws <= keys[i + 1]) { lo = keys[i]; hi = keys[i + 1]; break; }
+// ---------------------------------------------------------------- charts
+const NS = "http://www.w3.org/2000/svg";
+const el = (n, a) => { const e = document.createElementNS(NS, n); for (const k in a) e.setAttribute(k, a[k]); return e; };
+
+function drawFleet(est){
+  const svg = $("c-fleet"); svg.textContent = "";
+  const W = 720, H = 250, L = 18, R = 18, base = H - 34, lo = 476, hi = 500;
+  const x = v => L + (v - lo) / (hi - lo) * (W - L - R);
+  for (let v = lo; v <= hi; v += 4){
+    svg.appendChild(el("line", {x1:x(v), y1:24, x2:x(v), y2:base, class:"grid"}));
+    const t = el("text", {x:x(v), y:base+17, class:"tick", "text-anchor":"middle"}); t.textContent = v; svg.appendChild(t);
   }
-  const sLo = d.series[String(lo)], sHi = d.series[String(hi)];
-  const f = (tws - lo) / (hi - lo);
-  return sLo.map((p, i) => {
-    const q = sHi[i];
-    return { a: p.a + (q.a - p.a) * f, s: p.s + (q.s - p.s) * f };
+  svg.appendChild(el("line", {x1:L, y1:base, x2:W-R, y2:base, class:"axis-line"}));
+  const ax = el("text", {x:W-R, y:base+31, class:"tick", "text-anchor":"end"}); ax.textContent = "APH ToD  (s/NM)"; svg.appendChild(ax);
+  const bx1 = x(Math.max(lo, est - ERR)), bx2 = x(Math.min(hi, est + ERR));
+  svg.appendChild(el("rect", {x:bx1, y:24, width:Math.max(1,bx2-bx1), height:base-24,
+    fill:"var(--accent-soft)", stroke:"var(--accent)", "stroke-width":1, "stroke-dasharray":"3 3", rx:2}));
+  const rows = [];
+  FLEET.map((b,i)=>({v:b[2], i})).sort((a,b)=>a.v-b.v).forEach(d => {
+    let r = 0; while (rows[r] !== undefined && x(d.v) - rows[r] < 15) r++; rows[r] = x(d.v);
+    const c = el("circle", {cx:x(d.v), cy:base - 16 - r*17, r:6, class:"dot"}); c.dataset.i = d.i; svg.appendChild(c);
+  });
+  const ex = x(Math.min(hi, Math.max(lo, est)));
+  svg.appendChild(el("line", {x1:ex, y1:24, x2:ex, y2:base, stroke:"var(--accent)", "stroke-width":2}));
+  const boxW = 76, boxX = Math.min(W - R - boxW, Math.max(L, ex - boxW/2));
+  svg.appendChild(el("rect", {x:boxX, y:4, width:boxW, height:19, rx:3, fill:"var(--accent)"}));
+  const tx = el("text", {x:boxX + boxW/2, y:18, "text-anchor":"middle", fill:"#ffffff", "font-family":"var(--mono)", "font-size":"11.5px", "font-weight":"600"});
+  tx.textContent = "you · " + est.toFixed(1); svg.appendChild(tx);
+  const tip = $("tip"), wrap = svg.parentElement;
+  svg.querySelectorAll(".dot").forEach(d => {
+    const b = FLEET[+d.dataset.i];
+    const show = ev => {
+      tip.innerHTML = "<b>" + b[0] + "</b><span>APH ToD " + b[2].toFixed(1) + " · " + b[3] + " kg · RS " + b[10].toFixed(3) + "%</span>";
+      tip.style.opacity = 1;
+      const r = wrap.getBoundingClientRect();
+      tip.style.left = Math.min(r.width - 210, Math.max(4, ev.clientX - r.left + 12)) + "px";
+      tip.style.top  = (ev.clientY - r.top - 46) + "px";
+    };
+    d.addEventListener("mouseenter", show); d.addEventListener("mousemove", show);
+    d.addEventListener("mouseleave", () => tip.style.opacity = 0);
   });
 }
 
-function buildTWSSlider() {
-  const slider = document.getElementById('twsSlider');
-  const valueEl = document.getElementById('twsValue');
-  const ticks = document.getElementById('twsTicks');
-  const twsMin = 4, twsMax = SLIDER_MAX_TWS;
-  TWS_LIST.filter(v => v <= twsMax).forEach(v => {
-    const pct = ((v - twsMin) / (twsMax - twsMin)) * 100;
-    const el = document.createElement('span');
-    el.className = 'tws-tick';
-    el.style.left = pct + '%';
-    el.textContent = v;
-    ticks.appendChild(el);
-  });
-  slider.value = currentTWS;
-  valueEl.textContent = currentTWS.toFixed(1) + ' kt';
-  slider.addEventListener('input', () => {
-    currentTWS = parseFloat(slider.value);
-    valueEl.textContent = currentTWS.toFixed(1) + ' kt';
-    render();
-  });
-}
-
-function buildLegend() {
-  const el = document.getElementById('legend');
-  el.innerHTML = '';
-  BOATS.forEach(k => {
-    const d = DATA[k];
-    const item = document.createElement('div');
-    item.className = 'legend-item';
-    item.dataset.key = k;
-    if (!checkedBoats.has(k)) item.classList.add('is-off');
-
-    const cb = document.createElement('input');
-    cb.type = 'checkbox';
-    cb.checked = checkedBoats.has(k);
-    cb.addEventListener('change', () => {
-      if (cb.checked) checkedBoats.add(k); else checkedBoats.delete(k);
-      item.classList.toggle('is-off', !cb.checked);
-      render();
-    });
-
-    const swatch = document.createElement('span');
-    swatch.className = 'swatch';
-    swatch.style.background = d.color;
-
-    const name = document.createElement('span');
-    name.className = 'legend-name';
-    name.textContent = d.name;
-
-    const sub = document.createElement('span');
-    sub.className = 'legend-sub';
-    sub.textContent = ` (${d.class}, ${d.sailno})`;
-
-    // Wrap the checkbox in its own <label> so the tappable area extends past
-    // the tiny 19px box (via CSS padding) without a bigger visible checkbox.
-    const cbWrap = document.createElement('label');
-    cbWrap.className = 'legend-cb-wrap';
-    cbWrap.appendChild(cb);
-
-    item.append(cbWrap, swatch, name, sub);
-    el.appendChild(item);
+function drawSens(boat){
+  const svg = $("c-sens"); svg.textContent = "";
+  const W = 720, padL = 168, padR = 74, top = 14, rowH = 34;
+  const base = tod(boat);
+  const steps = [
+    ["dspl", +10, "+10 kg"], ["crew", +10, "+10 kg"], ["rm", +1, "+1.0 kg·m"],
+    ["main", +1, "+1.0 m² · pair"], ["jib", +1, "+1.0 m² · pair"], ["spin", +1, "+1.0 m² · pair"],
+    ["hsf", +10, "+10 m² · pair"], ["rs", +0.05, "+0.05 %"]
+  ].map(([k, d, txt]) => { const alt = {...boat}; alt[k] += d; return {k, txt, d: tod(alt) - base}; });
+  const maxAbs = Math.max(0.6, ...steps.map(s => Math.abs(s.d))) * 1.5;
+  const zero = padL + (W - padL - padR) / 2, half = (W - padL - padR) / 2;
+  const sx = v => zero + v / maxAbs * half;
+  const yEnd = top + steps.length*rowH;
+  svg.appendChild(el("line", {x1:zero, y1:top-4, x2:zero, y2:yEnd, stroke:"var(--rule-strong)", "stroke-width":1}));
+  const z = el("text", {x:zero, y:yEnd + 15, class:"tick", "text-anchor":"middle"}); z.textContent = "0"; svg.appendChild(z);
+  const fastT = el("text", {x:zero - 10, y:yEnd + 15, class:"tick", "text-anchor":"end"}); fastT.textContent = "← rated faster"; svg.appendChild(fastT);
+  const slowT = el("text", {x:zero + 10, y:yEnd + 15, class:"tick", "text-anchor":"start"}); slowT.textContent = "rated slower →"; svg.appendChild(slowT);
+  steps.forEach((s, i) => {
+    const y = top + i * rowH, h = 15;
+    const x0 = Math.min(zero, sx(s.d)), w = Math.max(2, Math.abs(sx(s.d) - zero)), faster = s.d < 0;
+    svg.appendChild(el("rect", {x:x0, y:y+4, width:w, height:h, rx:3, fill: faster ? "var(--pole-fast)" : "var(--pole-slow)"}));
+    const lab = el("text", {x:padL - 12, y:y + 16, class:"blabel", "text-anchor":"end"}); lab.textContent = LABEL[s.k]; svg.appendChild(lab);
+    const st = el("text", {x:padL - 12, y:y + 27, class:"blabel", "text-anchor":"end", opacity:".72"}); st.textContent = s.txt; svg.appendChild(st);
+    const val = el("text", {y:y + 16, class:"bval", x: faster ? x0 - 8 : x0 + w + 8, "text-anchor": faster ? "end" : "start"});
+    val.textContent = (s.d >= 0 ? "+" : "") + s.d.toFixed(2) + " s/NM"; svg.appendChild(val);
   });
 }
 
-function svgEl(tag, attrs) {
-  const e = document.createElementNS('http://www.w3.org/2000/svg', tag);
-  for (const k in attrs) e.setAttribute(k, attrs[k]);
-  return e;
-}
-
-function renderGrid(svg) {
-  RINGS.forEach(r => {
-    const rad = (r / MAXR) * plotR;
-    svg.appendChild(svgEl('circle', { class: 'grid-circle', cx, cy, r: rad }));
-    const lbl = svgEl('text', { class: 'grid-ring-label', x: cx + 4, y: cy - rad - 3 });
-    lbl.textContent = r + ' kt';
-    svg.appendChild(lbl);
+// ---------------------------------------------------------------- render
+function render(){
+  const boat = readInputs(), t = tod(boat);
+  $("o-tod").textContent = t.toFixed(1);
+  $("o-tot").textContent = (600 / t).toFixed(4);
+  $("o-band").textContent = "range " + (t - ERR).toFixed(1) + " – " + (t + ERR).toFixed(1) + "  (±" + ERR.toFixed(1) + " on an unseen boat)";
+  $("out-rank").textContent = "would rate " + (FLEET.filter(b => b[2] < t).length + 1) + " of " + (FLEET.length + 1) + " in this fleet";
+  const flags = [];
+  for (const k in RANGE){
+    const [lo, hi] = RANGE[k], v = boat[k], out = v < lo - 1e-9 || v > hi + 1e-9;
+    $("f-" + k).classList.toggle("is-out", out);
+    if (out) flags.push(LABEL[k] + " " + v + " " + UNIT[k] + " is outside the fleet range " + lo + "–" + hi + " — the estimate is an extrapolation");
+  }
+  if (boat.hsf > 0 && Math.abs(boat.hsf - 71.9) > 0.05) flags.push("Only one flying-headsail size (71.9 m²) has been seen — other sizes are scaled linearly, untested");
+  const box = $("o-flags"); box.innerHTML = "";
+  flags.forEach(msg => {
+    const d = document.createElement("div"); d.className = "flag";
+    d.innerHTML = '<svg width="13" height="13" viewBox="0 0 16 16" aria-hidden="true">' +
+      '<path d="M8 1.6 15 14.4H1z" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linejoin="round"/>' +
+      '<path d="M8 6v3.6" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>' +
+      '<circle cx="8" cy="12" r=".9" fill="currentColor"/></svg><span>' + msg + "</span>";
+    box.appendChild(d);
   });
-  const angleTicks = [0,30,60,90,120,150,180];
-  angleTicks.forEach(a => {
-    const [x, y] = polarToXY(a, MAXR * 1.08);
-    svg.appendChild(svgEl('line', { class: 'angle-line', x1: cx, y1: cy, x2: x, y2: y }));
-    // Skip the "0°" text label — it would sit right on top of the ring-speed
-    // labels (which run straight up the same spoke); the wind-arrow annotation
-    // and grid line already make the 0°/bow direction obvious.
-    if (a === 0) return;
-    const [lx, ly] = polarToXY(a, MAXR * 1.17);
-    const lbl = svgEl('text', { class: 'angle-label', x: lx, y: ly + 3 });
-    lbl.textContent = a + '°';
-    svg.appendChild(lbl);
+  drawFleet(t); drawSens(boat);
+}
+
+// ---------------------------------------------------------------- table
+(function buildTable(){
+  const tb = $("tbl-body");
+  FLEET.forEach(b => {
+    const p = tod(fleetBoat(b)), e = b[2] - p;
+    const tr = document.createElement("tr");
+    const cells = [b[2].toFixed(1), b[3], b[4], b[5].toFixed(2), b[6].toFixed(2), b[7].toFixed(2), b[9] ? b[9].toFixed(1) : "—", b[8].toFixed(1), b[10].toFixed(3), p.toFixed(1)];
+    tr.innerHTML = "<td>" + b[0] + "</td>" + '<td class="ref">' + b[11] + "</td>" +
+      cells.map(c => '<td class="num">' + c + "</td>").join("") +
+      '<td class="num" style="color:' + (Math.abs(e) > 1.4 ? "var(--accent)" : "var(--ink-muted)") + '">' + (e >= 0 ? "+" : "") + e.toFixed(2) + "</td>";
+    tr.style.cursor = "pointer"; tr.title = "Load " + b[0] + " into the calculator";
+    tr.addEventListener("click", () => { setInputs(fleetBoat(b), b[0]); document.querySelector(".masthead").scrollIntoView({behavior:"smooth", block:"start"}); });
+    tb.appendChild(tr);
   });
-  const wl = svgEl('text', { class: 'wind-label', x: cx, y: cy - plotR * 1.24 });
-  wl.textContent = '↑ TRUE WIND';
-  svg.appendChild(wl);
-}
+})();
 
-function renderBoats(svg, tooltip) {
-  const drawOrder = BOATS.filter(k => checkedBoats.has(k));
-  drawOrder.forEach(k => {
-    const d = DATA[k];
-    const pts = getInterpolatedSeries(k, currentTWS).slice().sort((a,b) => a.a - b.a);
-    if (!pts.length) return;
-    const coords = pts.map(p => polarToXY(p.a, p.s));
-    const dAttr = coords.map((c,i) => (i===0?'M':'L') + c[0].toFixed(1) + ',' + c[1].toFixed(1)).join(' ');
-    const path = svgEl('path', {
-      class: 'boat-path', d: dAttr, stroke: d.color,
-    });
-    svg.appendChild(path);
-    pts.forEach((p, i) => {
-      const [x, y] = coords[i];
-      const dot = svgEl('circle', {
-        class: 'boat-dot', cx: x, cy: y, r: 2, fill: d.color,
-      });
-      svg.appendChild(dot);
-      // Invisible larger circle as the actual tap/hover target — the visible dot
-      // is deliberately small (see readability fix above) but a ~2px target is
-      // too small to tap reliably, so the hit area is separate and bigger.
-      const hit = svgEl('circle', { class: 'boat-dot-hit', cx: x, cy: y, r: 10 });
-      const label = `${d.name}: ${p.s.toFixed(2)} kt @ ${p.a.toFixed(1)}°`;
-      hit.addEventListener('mousemove', (ev) => showTip(ev, label));
-      hit.addEventListener('mouseleave', () => hideTip());
-      hit.addEventListener('click', (ev) => {
-        ev.stopPropagation();
-        if (activeTipLabel === label) hideTip(); else showTip(ev, label);
-      });
-      svg.appendChild(hit);
-    });
-  });
-}
-
-let activeTipLabel = null;
-function showTip(ev, text) {
-  const tooltip = document.getElementById('tooltip');
-  const wrap = document.querySelector('.wrap-chart');
-  const rect = wrap.getBoundingClientRect();
-  activeTipLabel = text;
-  tooltip.textContent = text;
-  tooltip.style.left = (ev.clientX - rect.left) + 'px';
-  tooltip.style.top = (ev.clientY - rect.top) + 'px';
-  tooltip.style.opacity = 1;
-}
-function hideTip() {
-  activeTipLabel = null;
-  document.getElementById('tooltip').style.opacity = 0;
-}
-
-function renderTable() {
-  const wrap = document.getElementById('tableWrap');
-  const boats = BOATS.filter(k => checkedBoats.has(k));
-  const seriesByBoat = {};
-  boats.forEach(k => { seriesByBoat[k] = getInterpolatedSeries(k, currentTWS); });
-  const round1 = v => Math.round(v * 10) / 10;
-  let angles = new Set();
-  boats.forEach(k => seriesByBoat[k].forEach(p => angles.add(round1(p.a))));
-  angles = Array.from(angles).sort((a,b)=>a-b);
-  let html = '<table class="datatable"><thead><tr><th>TWA</th>' + boats.map(k=>`<th>${DATA[k].name} (kt)</th>`).join('') + '</tr></thead><tbody>';
-  angles.forEach(a => {
-    html += `<tr><td>${a.toFixed(1)}°</td>`;
-    boats.forEach(k => {
-      const p = seriesByBoat[k].find(pt => round1(pt.a) === a);
-      html += `<td>${p ? p.s.toFixed(2) : '–'}</td>`;
-    });
-    html += '</tr>';
-  });
-  html += '</tbody></table>';
-  wrap.innerHTML = `<div class="table-scroll">${html}</div>`;
-}
-
-function render() {
-  const svg = document.getElementById('chart');
-  svg.innerHTML = '';
-  renderGrid(svg);
-  renderBoats(svg);
-  if (tableMode) renderTable();
-}
-
-document.getElementById('viewToggle').addEventListener('click', function() {
-  tableMode = !tableMode;
-  this.setAttribute('aria-pressed', tableMode ? 'true' : 'false');
-  this.textContent = tableMode ? 'Show chart' : 'Show table';
-  document.getElementById('tableWrap').classList.toggle('hidden', !tableMode);
-  document.querySelector('.wrap-chart').classList.toggle('hidden', tableMode);
-  if (tableMode) renderTable();
+// ---------------------------------------------------------------- controls
+Object.values(IN).forEach(i => i.addEventListener("input", () => { $("loaded").textContent = "edited"; render(); }));
+$("b-f1").addEventListener("click", () => setInputs(F1, "F1 filed certificate"));
+$("b-reset").addEventListener("click", () => setInputs(TYPICAL, "class-typical boat"));
+let pick = 0;
+$("b-load").addEventListener("click", () => {
+  const b = FLEET[pick % FLEET.length]; pick++;
+  setInputs(fleetBoat(b), b[0]);
+  $("b-load").textContent = "Loaded: " + b[0] + " — next…";
 });
-
-// Tapping anywhere outside a data point (including the empty parts of the SVG,
-// which is most of it on a phone) dismisses any open tooltip.
-document.addEventListener('click', () => { if (activeTipLabel) hideTip(); });
-
-// The chart's viewBox is recomputed to match the actual on-screen pixel width
-// of its container, so text and touch targets stay a true, legible size on a
-// small phone instead of shrinking along with a fixed large viewBox.
-const BASE_W = 720, BASE_H = 560;
-function updateChartDimensions() {
-  const wrap = document.querySelector('.wrap-chart');
-  const w = Math.max(280, wrap.clientWidth || BASE_W);
-  const h = w * (BASE_H / BASE_W);
-  document.getElementById('chart').setAttribute('viewBox', `0 0 ${w} ${h}`);
-  cx = w * (350 / BASE_W);
-  cy = h * (280 / BASE_H);
-  plotR = w * (230 / BASE_W);
-  render();
-}
-window.addEventListener('resize', () => { clearTimeout(window._rzT); window._rzT = setTimeout(updateChartDimensions, 120); });
-
-buildTWSSlider();
-buildLegend();
-updateChartDimensions();
+render();
 </script>
-</body>
-</html>
+
+</body></html>
