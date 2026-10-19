@@ -300,15 +300,15 @@ a{color:var(--series)}
       </section>
 
       <section class="panel" aria-labelledby="h-sens">
-        <div class="panel-hd"><h2 id="h-sens">What each change buys</h2><span class="note">change in ToD</span></div>
+        <div class="panel-hd"><h2 id="h-sens">What your changes buy</h2><span class="note" id="sens-note">vs. F1 filed certificate</span></div>
         <div class="legend">
           <span><i class="swatch bar" style="background:var(--pole-fast)"></i>rated faster (lower ToD)</span>
           <span><i class="swatch bar" style="background:var(--pole-slow)"></i>rated slower (higher ToD)</span>
         </div>
         <div class="chartwrap">
-          <svg class="chart" id="c-sens" viewBox="0 0 720 300" role="img" aria-labelledby="cap-sens"></svg>
+          <svg class="chart" id="c-sens" viewBox="0 0 720 340" role="img" aria-labelledby="cap-sens"></svg>
         </div>
-        <figcaption id="cap-sens">Effect on the current estimate of changing one input at a time. Mainsail, headsail, spinnaker and flying headsail are slopes measured from real certificate pairs; displacement, crew and RM come from the fleet regression.</figcaption>
+        <figcaption id="cap-sens">Each bar is what your change to that input does to the estimate, compared with the certificate you loaded (F1's filed certificate until you load another). Inputs you haven't changed show their slope instead. Mainsail, headsail, spinnaker and flying-headsail slopes come from real certificate pairs; displacement, crew and RM come from the fleet regression.</figcaption>
       </section>
     </div>
   </div>
@@ -446,7 +446,8 @@ function readInputs(){
   return b;
 }
 const fleetBoat = b => ({dspl:b[3], crew:b[4], main:b[5], jib:b[6], spin:b[7], rm:b[8], hsf:b[9], rs:b[10]});
-function setInputs(o, label){ for (const k in IN) IN[k].value = o[k]; $("loaded").textContent = label; render(); }
+let BASE = {...F1}, BASE_LABEL = "F1 filed certificate";   // the certificate the changes are measured against
+function setInputs(o, label){ BASE = {...o}; BASE_LABEL = label; for (const k in IN) IN[k].value = o[k]; $("loaded").textContent = label; render(); }
 
 // ---------------------------------------------------------------- charts
 const NS = "http://www.w3.org/2000/svg";
@@ -491,32 +492,50 @@ function drawFleet(est){
   });
 }
 
+// Breaks the difference between the current inputs and the loaded certificate (BASE) into one bar per input.
 function drawSens(boat){
   const svg = $("c-sens"); svg.textContent = "";
-  const W = 720, padL = 168, padR = 74, top = 14, rowH = 34;
-  const base = tod(boat);
-  const steps = [
-    ["dspl", +10, "+10 kg"], ["crew", +10, "+10 kg"], ["rm", +1, "+1.0 kg·m"],
-    ["main", +1, "+1.0 m² · pair"], ["jib", +1, "+1.0 m² · pair"], ["spin", +1, "+1.0 m² · pair"],
-    ["hsf", +10, "+10 m² · pair"], ["rs", +0.05, "+0.05 %"]
-  ].map(([k, d, txt]) => { const alt = {...boat}; alt[k] += d; return {k, txt, d: tod(alt) - base}; });
-  const maxAbs = Math.max(0.6, ...steps.map(s => Math.abs(s.d))) * 1.5;
+  const W = 720, padL = 200, padR = 96, top = 14, rowH = 32;
+  const t0 = tod(BASE), t1 = tod(boat);
+  const PER = {dspl:[10,"per 10 kg"], crew:[10,"per 10 kg"], rm:[1,"per 1 kg·m"], main:[1,"per 1 m²"],
+               jib:[1,"per 1 m²"], spin:[1,"per 1 m²"], hsf:[10,"per 10 m²"], rs:[0.05,"per 0.05 %"]};
+  const fmt = (k, v) => k === "rs" ? v.toFixed(3) : (k === "dspl" || k === "crew") ? String(Math.round(v))
+                       : (k === "rm" || k === "hsf") ? v.toFixed(1) : v.toFixed(2);
+  const rows = ["dspl","crew","rm","main","jib","spin","hsf","rs"].map(k => {
+    const changed = Math.abs(boat[k] - BASE[k]) > 1e-9;
+    const alt = {...BASE}; alt[k] = boat[k];
+    const step = {...boat}; step[k] += PER[k][0];
+    const per = tod(step) - t1;
+    return {k, label: LABEL[k], changed, d: changed ? tod(alt) - t0 : 0,
+            sub: changed ? fmt(k, BASE[k]) + " → " + fmt(k, boat[k]) + " " + UNIT[k]
+                         : "unchanged · " + (per >= 0 ? "+" : "") + per.toFixed(2) + " " + PER[k][1]};
+  });
+  rows.push({k:"total", label:"Total change", changed:true, d:t1 - t0, sub:t0.toFixed(1) + " → " + t1.toFixed(1) + " s/NM"});
+  const maxAbs = Math.max(0.5, ...rows.map(r => Math.abs(r.d))) * 1.5;
   const zero = padL + (W - padL - padR) / 2, half = (W - padL - padR) / 2;
   const sx = v => zero + v / maxAbs * half;
-  const yEnd = top + steps.length*rowH;
+  const yEnd = top + rows.length*rowH + 6;
   svg.appendChild(el("line", {x1:zero, y1:top-4, x2:zero, y2:yEnd, stroke:"var(--rule-strong)", "stroke-width":1}));
+  const yT = top + (rows.length-1)*rowH + 2;
+  svg.appendChild(el("line", {x1:24, y1:yT, x2:W-12, y2:yT, stroke:"var(--rule-strong)", "stroke-width":1}));
   const z = el("text", {x:zero, y:yEnd + 15, class:"tick", "text-anchor":"middle"}); z.textContent = "0"; svg.appendChild(z);
   const fastT = el("text", {x:zero - 10, y:yEnd + 15, class:"tick", "text-anchor":"end"}); fastT.textContent = "← rated faster"; svg.appendChild(fastT);
   const slowT = el("text", {x:zero + 10, y:yEnd + 15, class:"tick", "text-anchor":"start"}); slowT.textContent = "rated slower →"; svg.appendChild(slowT);
-  steps.forEach((s, i) => {
-    const y = top + i * rowH, h = 15;
-    const x0 = Math.min(zero, sx(s.d)), w = Math.max(2, Math.abs(sx(s.d) - zero)), faster = s.d < 0;
-    svg.appendChild(el("rect", {x:x0, y:y+4, width:w, height:h, rx:3, fill: faster ? "var(--pole-fast)" : "var(--pole-slow)"}));
-    const lab = el("text", {x:padL - 12, y:y + 16, class:"blabel", "text-anchor":"end"}); lab.textContent = LABEL[s.k]; svg.appendChild(lab);
-    const st = el("text", {x:padL - 12, y:y + 27, class:"blabel", "text-anchor":"end", opacity:".72"}); st.textContent = s.txt; svg.appendChild(st);
+  rows.forEach((r, i) => {
+    const y = top + i * rowH + (r.k === "total" ? 6 : 0), isTotal = r.k === "total";
+    const lab = el("text", {x:padL - 12, y:y + 15, class:"blabel", "text-anchor":"end"});
+    lab.textContent = r.label; if (isTotal || r.changed) lab.setAttribute("style", "fill:var(--ink);font-weight:600");
+    svg.appendChild(lab);
+    const st = el("text", {x:padL - 12, y:y + 26, class:"blabel", "text-anchor":"end", opacity:".72"}); st.textContent = r.sub; svg.appendChild(st);
+    if (!r.changed) return;
+    const x0 = Math.min(zero, sx(r.d)), w = Math.max(2, Math.abs(sx(r.d) - zero)), faster = r.d < 0;
+    svg.appendChild(el("rect", {x:x0, y:y+4, width:w, height:15, rx:3,
+      fill: Math.abs(r.d) < 0.005 ? "var(--rule-strong)" : faster ? "var(--pole-fast)" : "var(--pole-slow)"}));
     const val = el("text", {y:y + 16, class:"bval", x: faster ? x0 - 8 : x0 + w + 8, "text-anchor": faster ? "end" : "start"});
-    val.textContent = (s.d >= 0 ? "+" : "") + s.d.toFixed(2) + " s/NM"; svg.appendChild(val);
+    if (isTotal) val.setAttribute("style", "font-weight:600;fill:var(--ink)");
+    val.textContent = (r.d >= 0 ? "+" : "") + r.d.toFixed(2) + " s/NM"; svg.appendChild(val);
   });
+  $("sens-note").textContent = "vs. " + BASE_LABEL;
 }
 
 // ---------------------------------------------------------------- render
@@ -562,7 +581,7 @@ function render(){
 })();
 
 // ---------------------------------------------------------------- controls
-Object.values(IN).forEach(i => i.addEventListener("input", () => { $("loaded").textContent = "edited"; render(); }));
+Object.values(IN).forEach(i => i.addEventListener("input", () => { $("loaded").textContent = "edited · from " + BASE_LABEL; render(); }));
 $("b-f1").addEventListener("click", () => setInputs(F1, "F1 filed certificate"));
 $("b-reset").addEventListener("click", () => setInputs(TYPICAL, "class-typical boat"));
 let pick = 0;
